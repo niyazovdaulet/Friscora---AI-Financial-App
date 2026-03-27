@@ -1,0 +1,386 @@
+/* Friscora – English (en) – Full app localization */
+
+/* Settings & Language */
+"settings.title" = "Settings";
+"settings.general" = "General";
+"settings.language" = "Language";
+"settings.data" = "Data";
+"settings.others" = "Others";
+"settings.notifications" = "Notifications";
+"settings.currency" = "Currency";
+"settings.authentication" = "Security";
+"settings.icloud_sync" = "iCloud Sync";
+"settings.export_data" = "Export Data";
+"settings.erase_data" = "Erase Data";
+"settings.about" = "About";
+"settings.feedback" = "Feedback";
+"settings.tap_to_rate" = "Tap to Rate the App";
+"settings.help_improve" = "Help us improve Friscora";
+"settings.currency_convert_message" = "Changing currency will convert all your existing transactions to the new currency using current exchange rates.";
+"settings.morning_reminder" = "Morning Reminder";
+"settings.evening_reminder" = "Evening Reminder";
+"settings.custom_reminder" = "Custom Reminder";
+"settings.enable" = "Enable";
+"settings.time" = "Time";
+"settings.icloud_sync_message" = "iCloud sync will be available in a future update.";
+"settings.icloud_sync_footer" = "Your expenses, incomes, goals, work data, and profile sync across devices signed in with the same Apple ID. Last save wins when editing on multiple devices.";
+"settings.icloud_sync_status" = "Status";
+"settings.icloud_sync_now" = "Sync now";
+"settings.icloud_sync_capability_hint" = "In Xcode: add the iCloud capability and check Key-Value storage so sync works on device.";
+"settings.export_message" = "Export data feature will be available in a future update.";
+"settings.export_footer" = "Export all your financial data as a CSV or JSON file.";
+"settings.erase_warning" = "This will permanently delete all your expenses, incomes, goals, and other data. This action cannot be undone.";
+"settings.erase_all_data" = "Erase All Data";
+"settings.erase_confirm_title" = "Erase All Data";
+"settings.erase_confirm_message" = "Are you sure you want to erase all your data? This action cannot be undone.";
+"settings.rate_in_app" = "Rate in App";
+"settings.open_app_store" = "Open App Store";
+"settings.rate_footer" = "Help us improve by rating Friscora on the App Store. Your feedback is valuable to us!";
+"settings.feedback_message" = "Feedback feature will be available in a future update.";
+"settings.feedback_footer" = "Share your thoughts and suggestions to help us improve Friscora.";
+"settings.export_as_csv" = "Export as CSV";
+"settings.export_share" = "Share or save your data";
+"settings.export_success" = "Export ready. Choose where to save or share.";
+"settings.feedback_send_email" = "Send email";
+"settings.feedback_send_email_footer" = "Opens your mail app with a pre-filled message.";
+"settings.feedback_or_form" = "Or use feedback form";
+"settings.feedback_form_footer" = "Open our feedback form in the browser.";
+"settings.feedback_mail_subject" = "Friscora Feedback";
+"settings.feedback_mail_body_placeholder" = "Tell us what you think, report a bug, or suggest a feature…";
+"settings.feedback_intro" = "We’d love to hear from you.";
+
+/* Feedback form (Firestore) */
+"feedback.title" = "Feedback";
+"feedback.required" = "Required";
+"feedback.subject_placeholder" = "Subject";
+"feedback.description_placeholder" = "What would you like to tell us?";
+"feedback.type_section" = "Type";
+"feedback.type" = "Type";
+"feedback.type_bug" = "Bug";
+"feedback.type_feature" = "Feature request";
+"feedback.type_other" = "Other";
+"feedback.optional_details" = "Optional details";
+"feedback.steps_placeholder" = "Steps to reproduce (optional)";
+"feedback.expected_placeholder" = "Expected result (optional)";
+"feedback.actual_placeholder" = "Actual result (optional)";
+"feedback.screenshot" = "Screenshot";
+"feedback.screenshot_optional" = "Screenshot (optional)";
+"feedback.screenshot_add" = "Add screenshot";
+"feedback.screenshot_change" = "Change screenshot";
+"feedback.screenshot_footer" = "Optional. One image; large images are compressed and may be omitted if too large.";
+"feedback.submit" = "Send feedback";
+"feedback.thank_you" = "Thanks for helping improve Friscora ❤️";
+"feedback.thank_you_title" = "You're all set!";
+"feedback.thank_you_subtitle" = "Thanks for helping improve Friscora ❤️";
+
+/* Language names & change */
+"language.name.en" = "English";
+"language.name.pl" = "Polish";
+"language.name.ru" = "Russian";
+"language.name.kk" = "Kazakh";
+"language.change.title" = "Change Language";
+"language.change.message" = "The app will reload to apply the new language.";
+"language.change.cancel" = "Cancel";
+"language.change.confirm" = "Confirm";
+"language.applying" = "Applying language…";
+
+/* Tab bar */
+"tab.dashboard" = "Dashboard";
+"tab.work" = "Work";
+"tab.add" = "Add";
+"tab.goals" = "Goals";
+"tab.analytics" = "Analytics";
+"tab.settings" = "Settings";
+
+/* Common */
+"common.cancel" = "Cancel";
+"common.save" = "Save";
+"common.done" = "Done";
+"common.yes" = "Yes";
+"common.no" = "No";
+"common.delete" = "Delete";
+"common.edit" = "Edit";
+"common.clear" = "Clear";
+"common.amount" = "Amount";
+"common.category" = "Category";
+"common.date" = "Date";
+"common.note" = "Note";
+"common.back" = "Back";
+"common.delete_confirm" = "Are you sure you want to delete this %@?";
+
+/* Activity (for delete confirmation) */
+"activity.income" = "income";
+"activity.salary" = "Salary";
+"activity.expense" = "expense";
+"activity.goal_contribution" = "goal contribution";
+
+/* Categories */
+"category.food" = "Food";
+"category.transport" = "Transport";
+"category.rent" = "Rent";
+"category.entertainment" = "Entertainment";
+"category.subscriptions" = "Subscriptions";
+"category.other" = "Other";
+"category.name" = "Category Name";
+"category.icon" = "Icon";
+
+/* Dashboard */
+"dashboard.income" = "Income";
+"dashboard.expenses" = "Expenses";
+"dashboard.remaining_balance" = "Remaining Balance";
+"dashboard.spending_by_category" = "Spending by Category";
+"dashboard.empty_categories" = "A clean start. Add your first expense to begin tracking.";
+"dashboard.add_expense" = "Add Expense";
+"dashboard.allocated_savings" = "Allocated Savings";
+"dashboard.no_active_savings" = "No active savings goals";
+"dashboard.create_goal" = "Create Goal";
+"dashboard.view_all_goals" = "View All Goals";
+"dashboard.goals" = "Goals";
+"dashboard.recent_activity" = "Recent Activity";
+"dashboard.view_all" = "View All";
+"dashboard.no_activity_yet" = "No activity recorded yet";
+"dashboard.merged_from" = "Merged from %@";
+"dashboard.select_month" = "Select month";
+"dashboard.merge" = "Merge";
+"dashboard.unmerge" = "Unmerge";
+"dashboard.edit_expense" = "Edit Expense";
+"dashboard.edit_income" = "Edit Income";
+"dashboard.income_label" = "Income";
+"dashboard.to_goal" = "To goal: %@";
+
+/* Analytics */
+"analytics.title" = "Analytics";
+"analytics.period" = "Period";
+"analytics.income_breakdown" = "Income breakdown";
+"analytics.no_data" = "No data for this period";
+"analytics.vs_last_month" = "vs last month";
+"analytics.vs_prev" = "vs prev. mo.";
+"analytics.insights_title" = "Insights";
+"analytics.insight.top_category" = "%@ takes %d%% of your expenses.";
+"analytics.insight.top_category_high" = "%@ takes %d%% of your expenses — your biggest category.";
+"analytics.insight.expenses_up" = "You spent %d%% more this month than last month.";
+"analytics.insight.expenses_down" = "You spent %d%% less this month than last month.";
+"analytics.insight.consider_savings_goal" = "You saved 0 this month — consider setting a savings goal.";
+"analytics.insight.over_budget" = "You’ve exceeded your budget this month.";
+"analytics.chart.pie" = "Pie Chart";
+"analytics.chart.bar" = "Bar Chart";
+"analytics.chart.line" = "Line Chart";
+"analytics.chart.line_net_balance" = "Net balance";
+"analytics.pie.expenses" = "Expenses";
+"analytics.pie.savings" = "Savings";
+"analytics.pie.remaining" = "Remaining";
+
+/* Add Transaction */
+"add_transaction.title" = "Add Transaction";
+"add_transaction.expense" = "Expense";
+"add_transaction.income" = "Income";
+"add_transaction.note_optional" = "Note (Optional)";
+"add_transaction.add_note_placeholder" = "Add a note...";
+"add_transaction.save_transaction" = "Save Transaction";
+"add_transaction.new_category" = "New Category";
+"add_transaction.saved" = "Saved!";
+"add_transaction.view_dashboard" = "View Dashboard";
+"add_transaction.enter_category_name" = "Enter category name";
+"add_transaction.expense_added" = "Expense Added";
+"add_transaction.income_added" = "Income Added";
+"add_transaction.saved_success" = "Your %@ has been saved successfully.";
+
+/* Work */
+"work.title" = "Work";
+"work.no_jobs_added" = "No Jobs Added";
+"work.add_first_job" = "Add your first job to start tracking your work schedule and salary projections";
+"work.add_job" = "Add Job";
+"work.summary" = "Summary";
+"work.total_hours" = "Total Hours";
+"work.estimated_salary" = "Estimated Salary";
+"work.salary_projection" = "Salary Projection";
+"work.no_payments_scheduled" = "No payments scheduled";
+"work.delete_month_confirm" = "Are you sure you want to delete all work hours for %@? This action cannot be undone.";
+"work.hours_short" = "h";
+"work.clear_all" = "Clear All Hours";
+"work.clear_all_button" = "Clear All";
+
+/* Work Hours */
+"work_hours.title" = "Work Hours";
+"work_hours.select_job" = "Select Job";
+"work_hours.hours_worked" = "Hours Worked";
+"work_hours.hrs" = "hrs";
+"work_hours.save" = "Save";
+"work_hours.invalid_hours" = "Please enter a valid number between 0 and 24 hours.";
+
+/* Jobs */
+"jobs.title" = "Jobs";
+"jobs.delete" = "Delete";
+"jobs.add_first_message" = "Add your first job to start tracking your work schedule";
+"new_job.title" = "New Job";
+"job_detail.delete_job" = "Delete Job";
+"job_detail.edit_job" = "Edit Job";
+"job.name" = "Job Name";
+"job.payment_type" = "Payment Type";
+"job.hourly_rate" = "Hourly Rate";
+"job.fixed_monthly_amount" = "Fixed Monthly Amount";
+"job.payment_type.hourly" = "Hourly Rate";
+"job.payment_type.fixed_monthly" = "Fixed Monthly";
+"job.salary_payment_type" = "Salary Payment Type";
+"job.salary_type.monthly" = "Once per month";
+"job.salary_type.weekly" = "Weekly";
+"job.salary_type.daily" = "Daily";
+"job.salary_type.twice_monthly" = "Twice per month";
+"job.payment_days" = "Payment Days";
+"job.select_day_of_month" = "Select day of month (e.g., 14th)";
+"job.payment_day_clarification_title" = "Payment day";
+"job.payment_day_clarification_message" = "Salary for work in %@ will be paid on %@ %d (the following month).";
+"job.payment_day_clarification_yes_no" = "Yes: Work in %@ is paid on %@ %d (the following month).\n\nNo: Paid in the same month; each payment covers the period from the day after the previous pay day until this pay day.";
+"job.select_two_days" = "Select two days of month";
+"job.calendar_color" = "Calendar Color";
+"job.shifts" = "Shifts";
+"job.add_shift" = "Add Shift";
+"job.shifts_hint" = "Define shifts (e.g. Morning, Evening). When logging work, you'll select a shift and hours will be calculated automatically.";
+"job.delete_confirm" = "Are you sure you want to delete \"%@\"? This will also delete all work hours associated with this job.";
+"shift.name_placeholder" = "e.g. Morning, Day, Evening";
+"shift.name_label" = "Shift name";
+"shift.tap_to_rename" = "Tap to rename";
+"shift.start_time" = "Start";
+"shift.end_time" = "End";
+"shift.morning" = "Morning";
+"shift.day" = "Day";
+"shift.evening" = "Evening";
+"shift.night" = "Night";
+"work_hours.select_shift" = "Select Shift";
+"work_hours.no_shifts_add" = "No shifts yet. Tap + to add one.";
+"work_hours.custom_hours" = "Custom hours";
+"work_hours.shift_hours" = "%@ · %.1f hrs";
+"work_hours.hours_unit" = "(hours)";
+"work_hours.edit_time" = "Tap to change time";
+"work_hours.invalid_title" = "Invalid Hours";
+"work_hours.ok" = "OK";
+
+/* Goals */
+"goals.title" = "Goals";
+"goals.new_goal" = "New Goal";
+"goals.active" = "Active";
+"goals.completed" = "Completed";
+"goals.no_active_goals" = "No Active Goals";
+"goals.set_first_goal" = "Set your first financial goal to stay motivated and track your progress";
+"goals.create_first_goal" = "Create Your First Goal";
+"goals.no_completed_goals" = "No Completed Goals";
+"goals.complete_goals_message" = "Complete your goals to see them here";
+"goals.current" = "Current";
+"goals.target" = "Target";
+"goals.percent_complete" = "%d%% Complete";
+"goals.percent_remaining" = "%d%% Remaining";
+"goals.update_progress" = "Update progress";
+"goals.on_track" = "On track";
+"goals.template_emergency" = "Emergency Fund";
+"goals.template_vacation" = "Vacation";
+"goals.template_freedom" = "Freedom Fund";
+"goals.template_debt" = "Debt Payoff";
+"goals.new_goal_title" = "New Goal";
+"goals.update_goal_title" = "Update Goal";
+"goals.goal_templates" = "Goal Templates";
+"goals.start_with_suggestion" = "Start with a smart suggestion";
+"goals.suggested_amount" = "Suggested: %@";
+"goals.enter_amount" = "Enter your amount";
+"goals.enter_goal_title" = "Enter your goal title";
+"goals.goal_title" = "Goal Title";
+"goals.target_amount" = "Target Amount";
+"goals.deadline" = "Deadline";
+"goals.set_deadline" = "Set deadline";
+"goals.deadline_help" = "Deadlines help the adviser guide you better";
+"goals.delete_confirm" = "Are you sure you want to delete this goal? This action cannot be undone.";
+"goals.current_progress" = "Current Progress";
+"goals.current_amount" = "Current Amount";
+"goals.progress" = "Progress";
+"goals.completion_status" = "Completion Status";
+"goals.mark_completed" = "Mark as Completed";
+"goals.danger_zone" = "Danger Zone";
+"goals.delete_goal" = "Delete Goal";
+"goals.add_progress" = "Add Progress";
+"goals.add_more_remaining" = "You can only add %@ more to reach the target";
+"goals.add_to_goal" = "Add to Goal";
+"goals.recent_activity" = "Recent Activity";
+"goals.no_activity_yet" = "No activity yet";
+"goals.congratulations" = "Congratulations!";
+"goals.completed_message" = "You've completed your goal!";
+"goals.tap_to_continue" = "Tap anywhere to continue";
+
+/* History */
+"history.title" = "History";
+"history.no_transactions" = "No Transactions Found";
+"history.adjust_filters" = "Try adjusting your filters or search terms";
+"history.merged_from" = "Merged from %@";
+"history.added_income" = "Added Income";
+"history.quick_select" = "Quick Select";
+"history.custom_range" = "Custom Range";
+"history.apply_range" = "Apply Custom Range";
+"history.select_date_range" = "Select Date Range";
+
+/* Edit Categories */
+"edit_categories.title" = "Edit Categories";
+"edit_categories.builtin_not_editable" = "Built-in categories cannot be edited";
+"edit_categories.builtin" = "Built-in Categories";
+"edit_categories.no_custom" = "No custom categories yet";
+"edit_categories.custom" = "Custom Categories";
+"edit_categories.tap_to_edit" = "Tap a category to edit, or swipe to delete";
+"edit_category.title" = "Edit Category";
+
+/* Chat / AI Adviser */
+"chat.title" = "AI Adviser";
+"chat.thinking" = "Thinking...";
+"chat.disclaimer" = "Friscora provides educational financial insights, not professional advice.";
+"chat.suggested_questions" = "Suggested questions:";
+
+/* Onboarding */
+"onboarding.welcome" = "Welcome to Friscora";
+"onboarding.subtitle" = "Your AI-powered personal finance coach";
+"onboarding.select_currency" = "Select Currency";
+"onboarding.add_income" = "Add Your Income(s)";
+"onboarding.add_another_income" = "Add Another Income";
+"onboarding.your_goal" = "Your Goal";
+"onboarding.goal_question" = "What's your primary financial goal?";
+"onboarding.notifications" = "Notifications";
+"onboarding.notifications_subtitle" = "Set up reminders to stay on track";
+"onboarding.morning_reminder" = "Morning Reminder";
+"onboarding.morning_subtitle" = "Every day at 10:00 AM";
+"onboarding.evening_reminder" = "Evening Reminder";
+"onboarding.evening_subtitle" = "Every day at 10:00 PM";
+"onboarding.custom_reminder" = "Custom Reminder";
+"onboarding.custom_reminder_subtitle" = "Choose your own time";
+"onboarding.security" = "Security";
+"onboarding.security_subtitle" = "Protect your financial data";
+"onboarding.create_passcode" = "Create Passcode";
+"onboarding.create_passcode_subtitle" = "Enter a 4-digit passcode to secure your data";
+"onboarding.skip" = "Skip for now";
+"onboarding.confirm_passcode" = "Confirm Passcode";
+"onboarding.confirm_passcode_subtitle" = "Re-enter your passcode";
+"onboarding.enable" = "Enable";
+"onboarding.not_now" = "Not Now";
+"onboarding.face_id_message" = "You can use %@ to quickly unlock Friscora";
+"onboarding.back" = "Back";
+"onboarding.get_started" = "Get Started";
+"onboarding.next" = "Next";
+"onboarding.enable_biometric_title" = "Enable %@?";
+"onboarding.search_currency" = "Search currency";
+"onboarding.select_currency_sheet" = "Select Currency";
+
+/* Authentication */
+"auth.friscora" = "Friscora";
+"auth.or" = "or";
+"auth.enter_passcode" = "Enter Passcode";
+"auth.unlock_with_biometric" = "Unlock with %@";
+"auth.face_id" = "Face ID";
+"auth.touch_id" = "Touch ID";
+"auth.incorrect_passcode" = "Incorrect passcode";
+"auth.too_many_attempts" = "Too many attempts. Please try again later.";
+"auth.disable_title" = "Disable Security";
+"auth.disable_message" = "Enter your passcode to disable authentication";
+"auth.create_passcode" = "Create Passcode";
+"auth.create_passcode_subtitle" = "Enter a 4-digit passcode to secure your data";
+"auth.setup_title" = "Setup Security";
+"auth.confirm_passcode" = "Confirm Passcode";
+"auth.confirm_passcode_subtitle" = "Re-enter your passcode";
+"auth.enable" = "Enable";
+
+/* Notifications (in-app titles) */
+"notifications.title" = "Notifications";
+"rate_app.title" = "Rate the App";

@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Friscora – Storage Security Rules (optional; use when you enable Storage on Blaze)
+// Deploy: firebase deploy --only storage
+//
+// Storage is not on the free Spark plan. Until you upgrade to Blaze,
+// the app uses a free alternative: one optional screenshot stored as
+// base64 in the Firestore feedback document (no Storage needed).
+// When you enable Storage, you can switch to uploading images here
+// and use these rules.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Feedback attachments: allow anyone to upload under feedback/{feedbackId}/
+    // Limit file size to 2MB and allow only image types.
+    match /feedback/{feedbackId}/{allPaths=**} {
+      allow create: if request.auth == null
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow read, update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

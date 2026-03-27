@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Friscora – Firestore Security Rules
+// Deploy: firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Feedback collection: allow anyone to create a document (no auth required).
+    // Optional fields: stepsToReproduce, expectedResult, actualResult,
+    // screenshotBase64, type, buildNumber, analyticsMonth – allowed but not required.
+    // No read/update/delete from clients – only your backend or Console should read.
+    match /feedback/{feedbackId} {
+      allow create: if request.resource.data.subject is string
+        && request.resource.data.subject.size() >= 1
+        && request.resource.data.subject.size() <= 500
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 1
+        && request.resource.data.description.size() <= 10000
+        && request.resource.data.appVersion is string
+        && request.resource.data.device is string
+        && request.resource.data.iosVersion is string
+        && request.resource.data.locale is string
+        && request.resource.data.createdAt is timestamp;
+      allow read, update, delete: if false;
+    }
+
+    // Block all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

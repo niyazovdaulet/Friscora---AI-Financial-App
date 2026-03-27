@@ -1,0 +1,21 @@
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+
+# Cursor / local IDE
+.cursor/
+
+# Swift PM
+.build/
+
+# Firebase iOS client config — keep real plist local; use .example in repo
+Friscora/GoogleService-Info.plist
