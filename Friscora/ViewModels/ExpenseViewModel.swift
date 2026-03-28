@@ -48,7 +48,6 @@ class ExpenseViewModel: ObservableObject {
     
     private func resetForm() {
         amount = ""
-        selectedCategory = .food
         selectedDate = Date()
         note = ""
     }

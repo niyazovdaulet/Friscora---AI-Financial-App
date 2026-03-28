@@ -3,6 +3,10 @@
 
 "settings.title" = "Баптау";
 "settings.general" = "Жалпы";
+"settings.section.account" = "Тіркелгі";
+"settings.section.security" = "Қауіпсіздік";
+"settings.section.notifications" = "Хабарландырулар";
+"settings.section.about" = "Қосымша туралы";
 "settings.language" = "Тіл";
 "settings.data" = "Деректер";
 "settings.others" = "Басқа";
@@ -143,6 +147,10 @@
 
 "analytics.title" = "Аналитика";
 "analytics.period" = "Кезең";
+"analytics.savings_rate_caption" = "Жинақ деңгейі: табыстың %d%%-ы мақсаттарға";
+"analytics.categories_detail" = "Санаттар тізімі";
+"analytics.pie_hero_period" = "осы айда";
+"analytics.pie_tap_hint" = "Толығырақ үшін диаграмманы басыңыз.";
 "analytics.income_breakdown" = "Қаражаттың бөлінуі";
 "analytics.no_data" = "Осы кезеңде деректер жоқ";
 "analytics.vs_last_month" = "өткен аймен салыстырғанда";
@@ -166,6 +174,7 @@
 "add_transaction.expense" = "Шығын";
 "add_transaction.income" = "Кіріс";
 "add_transaction.note_optional" = "Ескерту (міндетті емес)";
+"add_transaction.details" = "Толығырақ";
 "add_transaction.add_note_placeholder" = "Ескерту қосу...";
 "add_transaction.save_transaction" = "Сақтау";
 "add_transaction.new_category" = "Жаңа санат";

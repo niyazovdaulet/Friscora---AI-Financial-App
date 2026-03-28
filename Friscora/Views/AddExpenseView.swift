@@ -127,6 +127,9 @@ struct AddExpenseView: View {
                     .presentationCornerRadius(24)
                     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
+            .onAppear {
+                applyLastUsedFromPersistence()
+            }
         }
     }
     
@@ -188,19 +191,9 @@ struct AddExpenseView: View {
     private var expenseContent: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Amount input card (smaller)
                 amountInputCard
-                
-                // Category selector (only for expenses) - smaller
                 categorySelectorCard
-                
-                // Date picker card (full width, improved UI)
-                datePickerCard
-                
-                // Note input card
-                noteInputCard
-                
-                // Spacer for save button space
+                expenseDetailsDisclosure
                 if canSave {
                     Spacer()
                         .frame(height: 80)
@@ -216,16 +209,8 @@ struct AddExpenseView: View {
     private var incomeContent: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Amount input card (smaller)
                 amountInputCard
-                
-                // Date picker card (full width, improved UI)
-                datePickerCard
-                
-                // Note input card
-                noteInputCard
-                
-                // Spacer for save button space
+                incomeDetailsDisclosure
                 if canSave {
                     Spacer()
                         .frame(height: 80)
@@ -377,65 +362,92 @@ struct AddExpenseView: View {
         )
     }
     
-    // MARK: - Date Picker Card (Full Width, Improved UI)
-    private var datePickerCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-Text(L10n("common.date"))
-            .font(.subheadline)
-            .fontWeight(.semibold)
-                .foregroundColor(AppColorTheme.textSecondary)
-            
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundColor(selectedType == .expense ?
-                                   AppColorTheme.negative :
-                                   AppColorTheme.positive)
-                    .font(.title3)
-                
-                AutoDismissDatePicker(
-                    selection: selectedType == .expense ? $expenseViewModel.selectedDate : $incomeViewModel.selectedDate,
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.compact)
-                .labelsHidden()
-                
-                Spacer()
+    // MARK: - Details (date defaults to today; optional note)
+    private var expenseDetailsDisclosure: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n("common.date"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                    datePickerRow(selection: $expenseViewModel.selectedDate, accent: AppColorTheme.negative)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n("add_transaction.note_optional"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                    noteField(text: $expenseViewModel.note)
+                }
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(AppColorTheme.elevatedBackground)
-            .cornerRadius(12)
+            .padding(.top, 8)
+        } label: {
+            Text(L10n("add_transaction.details"))
+                .font(AppTypography.captionMedium)
+                .foregroundColor(AppColorTheme.textSecondary)
         }
+        .tint(AppColorTheme.accent)
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(AppColorTheme.cardBackground)
-                .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 3)
         )
     }
-    
-    // MARK: - Note Input Card
-    private var noteInputCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(L10n("add_transaction.note_optional"))
-                .font(.subheadline)
-                .fontWeight(.semibold)
+
+    private var incomeDetailsDisclosure: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n("common.date"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                    datePickerRow(selection: $incomeViewModel.selectedDate, accent: AppColorTheme.positive)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n("add_transaction.note_optional"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                    noteField(text: $incomeViewModel.note)
+                }
+            }
+            .padding(.top, 8)
+        } label: {
+            Text(L10n("add_transaction.details"))
+                .font(AppTypography.captionMedium)
                 .foregroundColor(AppColorTheme.textSecondary)
-            
-            TextField(L10n("add_transaction.add_note_placeholder"), text: selectedType == .expense ? $expenseViewModel.note : $incomeViewModel.note, axis: .vertical)
-                .focused($isNoteFocused)
-                .lineLimit(3...6)
-                .padding(12)
-                .background(AppColorTheme.elevatedBackground)
-                .cornerRadius(12)
         }
+        .tint(AppColorTheme.accent)
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(AppColorTheme.cardBackground)
-                .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 3)
         )
-        .scaleEffect(isNoteFocused ? 1.01 : 1.0)
+    }
+
+    private func datePickerRow(selection: Binding<Date>, accent: Color) -> some View {
+        HStack {
+            Image(systemName: "calendar")
+                .foregroundColor(accent)
+                .font(.body)
+            AutoDismissDatePicker(selection: selection, displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+            Spacer()
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(AppColorTheme.elevatedBackground)
+        .cornerRadius(12)
+    }
+
+    private func noteField(text: Binding<String>) -> some View {
+        TextField(L10n("add_transaction.add_note_placeholder"), text: text, axis: .vertical)
+            .focused($isNoteFocused)
+            .lineLimit(3...6)
+            .padding(12)
+            .background(AppColorTheme.elevatedBackground)
+            .cornerRadius(12)
     }
     
     // MARK: - Save Button (Sticky)
@@ -472,32 +484,56 @@ Text(L10n("common.date"))
         selectedType == .expense ? expenseViewModel.canSaveExpense : incomeViewModel.canSaveIncome
     }
     
+    private func applyLastUsedFromPersistence() {
+        let (cat, customId) = LastUsedExpenseCategory.load(customCategories: customCategoryService.customCategories)
+        expenseViewModel.selectedCategory = cat
+        selectedCustomCategoryId = customId
+    }
+
     private func clearForm() {
         withAnimation(AppAnimation.standard) {
             expenseViewModel.amount = ""
-            expenseViewModel.selectedCategory = .food
             expenseViewModel.note = ""
+            expenseViewModel.selectedDate = Date()
             incomeViewModel.amount = ""
             incomeViewModel.note = ""
+            incomeViewModel.selectedDate = Date()
             amountDisplay = ""
-            selectedCustomCategoryId = nil
             isAmountFocused = false
             isNoteFocused = false
         }
+        applyLastUsedFromPersistence()
         HapticHelper.lightImpact()
     }
-    
+
     private func saveTransaction() {
         HapticHelper.mediumImpact()
-        
+
         if selectedType == .expense {
+            LastUsedExpenseCategory.save(category: expenseViewModel.selectedCategory, customId: selectedCustomCategoryId)
             expenseViewModel.saveExpense(customCategoryId: selectedCustomCategoryId)
         } else {
             incomeViewModel.saveIncome()
         }
-        
-        clearForm()
+
+        clearFormAfterSuccessfulSave()
         showSuccessMessage = true
+    }
+
+    /// Clears amounts and resets dates to today; restores expense category from UserDefaults (`friscora.lastExpenseCategory`, `friscora.lastCustomCategoryId`).
+    private func clearFormAfterSuccessfulSave() {
+        withAnimation(AppAnimation.standard) {
+            expenseViewModel.amount = ""
+            expenseViewModel.note = ""
+            expenseViewModel.selectedDate = Date()
+            incomeViewModel.amount = ""
+            incomeViewModel.note = ""
+            incomeViewModel.selectedDate = Date()
+            amountDisplay = ""
+            isAmountFocused = false
+            isNoteFocused = false
+        }
+        applyLastUsedFromPersistence()
     }
 }
 

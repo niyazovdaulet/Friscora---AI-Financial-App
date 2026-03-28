@@ -8,12 +8,6 @@
 import Foundation
 import Combine
 
-// MARK: - Chart type
-enum AnalyticsChartType: String, CaseIterable {
-    case pie
-    case bar
-}
-
 // MARK: - Trend direction for KPIs
 enum TrendDirection {
     case up
@@ -92,7 +86,6 @@ class AnalyticsViewModel: ObservableObject {
     @Published var goalAllocations: Double = 0
     @Published var remainingBalance: Double = 0
     @Published var categoryBreakdown: [CategoryDisplayInfo: Double] = [:]
-    @Published var chartType: AnalyticsChartType = .pie
     
     // Previous period (for trend)
     @Published var previousMonthIncome: Double = 0
@@ -236,25 +229,7 @@ class AnalyticsViewModel: ObservableObject {
             }
         }
         
-        // Expenses vs last month
-        if previousMonthExpenses > 0 && totalExpenses > 0 {
-            let pct = Int(round(((totalExpenses - previousMonthExpenses) / previousMonthExpenses) * 100))
-            if abs(pct) >= 5 {
-                if pct > 0 {
-                    result.append(AnalyticsInsight(
-                        id: "expenses_trend",
-                        messageKey: "analytics.insight.expenses_up",
-                        formatArguments: [pct]
-                    ))
-                } else {
-                    result.append(AnalyticsInsight(
-                        id: "expenses_trend",
-                        messageKey: "analytics.insight.expenses_down",
-                        formatArguments: [abs(pct)]
-                    ))
-                }
-            }
-        }
+        // Expense month-over-month is shown in the trend strip; omit here to avoid repeating the same figure.
         
         // Zero savings nudge
         if goalAllocations <= 0 && monthlyIncome > 0 {

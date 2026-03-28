@@ -3,6 +3,10 @@
 /* Settings & Language */
 "settings.title" = "Settings";
 "settings.general" = "General";
+"settings.section.account" = "Account";
+"settings.section.security" = "Security";
+"settings.section.notifications" = "Notifications";
+"settings.section.about" = "About";
 "settings.language" = "Language";
 "settings.data" = "Data";
 "settings.others" = "Others";
@@ -151,6 +155,10 @@
 /* Analytics */
 "analytics.title" = "Analytics";
 "analytics.period" = "Period";
+"analytics.savings_rate_caption" = "Savings rate: %d%% of income allocated to goals";
+"analytics.categories_detail" = "Category list";
+"analytics.pie_hero_period" = "this month";
+"analytics.pie_tap_hint" = "Tap the chart to see category details.";
 "analytics.income_breakdown" = "Income breakdown";
 "analytics.no_data" = "No data for this period";
 "analytics.vs_last_month" = "vs last month";
@@ -175,6 +183,7 @@
 "add_transaction.expense" = "Expense";
 "add_transaction.income" = "Income";
 "add_transaction.note_optional" = "Note (Optional)";
+"add_transaction.details" = "Details";
 "add_transaction.add_note_placeholder" = "Add a note...";
 "add_transaction.save_transaction" = "Save Transaction";
 "add_transaction.new_category" = "New Category";

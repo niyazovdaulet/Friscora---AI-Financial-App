@@ -15,6 +15,8 @@ struct WorkScheduleView: View {
     @State private var showingSettings = false
     @State private var showingNewJob = false
     @State private var showingClearConfirmation = false
+    /// Collapsed by default so the calendar stays the visual focus; projection stays one tap away.
+    @State private var salaryProjectionExpanded = false
     
     /// Months to show in horizontal calendar (24 back, current, 24 forward)
     private var calendarMonths: [Date] {
@@ -44,21 +46,20 @@ struct WorkScheduleView: View {
                     emptyStateView
                 } else {
                     ScrollView {
-                        VStack(spacing: 24) {
-                            // Horizontally scrollable calendar (task 8)
+                        VStack(spacing: AppSpacing.xl) {
                             horizontalCalendarSection
-                                .padding(.horizontal)
-                            
-                            // Summary section
+                                .padding(.horizontal, AppSpacing.l)
+                                .padding(.top, AppSpacing.l)
+
                             summarySection
-                                .padding(.horizontal)
-                            
-                            // Salary projection section
-                            salaryProjectionSection
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppSpacing.l)
+
+                            salaryProjectionDisclosure
+                                .padding(.horizontal, AppSpacing.l)
                         }
-                        .padding(.vertical)
+                        .padding(.vertical, AppSpacing.m)
                     }
+                    .scrollIndicators(.hidden, axes: .vertical)
                 }
             }
 //            .navigationTitle(L10n("work.title"))
@@ -334,11 +335,10 @@ struct WorkScheduleView: View {
     }
     
     private var summarySection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: AppSpacing.m) {
             HStack {
                 Text(L10n("work.summary"))
-                    .font(.title3)
-                    .fontWeight(.bold)
+                    .font(AppTypography.cardTitle)
                     .foregroundColor(AppColorTheme.textPrimary)
                 Spacer()
             }
@@ -438,16 +438,30 @@ struct WorkScheduleView: View {
         }
     }
     
-    private var salaryProjectionSection: some View {
-        VStack(spacing: 20) {
-            HStack {
-                Text(L10n("work.salary_projection"))
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(AppColorTheme.textPrimary)
-                Spacer()
-            }
-            
+    /// Salary projection folded by default (Option A: collapsible) to avoid three large blocks above the fold.
+    private var salaryProjectionDisclosure: some View {
+        DisclosureGroup(isExpanded: $salaryProjectionExpanded) {
+            salaryProjectionCardBody
+        } label: {
+            Text(L10n("work.salary_projection"))
+                .font(AppTypography.cardTitle)
+                .foregroundColor(AppColorTheme.textPrimary)
+        }
+        .tint(AppColorTheme.accent)
+        .padding(AppSpacing.m)
+        .background(
+            LinearGradient(
+                colors: [AppColorTheme.cardBackground, AppColorTheme.cardBackground.opacity(0.8)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 2)
+    }
+
+    private var salaryProjectionCardBody: some View {
+        VStack(spacing: AppSpacing.m) {
             if viewModel.projectedPayments.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "calendar.badge.clock")
@@ -485,16 +499,7 @@ struct WorkScheduleView: View {
                 .cornerRadius(16)
             }
         }
-        .padding()
-        .background(
-            LinearGradient(
-                colors: [AppColorTheme.cardBackground, AppColorTheme.cardBackground.opacity(0.8)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .cornerRadius(20)
-        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 2)
+        .padding(.top, AppSpacing.s)
     }
     
     private func paymentRow(payment: WorkScheduleViewModel.ProjectedPayment) -> some View {

@@ -2,6 +2,10 @@
 
 "settings.title" = "Настройки";
 "settings.general" = "Основные";
+"settings.section.account" = "Аккаунт";
+"settings.section.security" = "Безопасность";
+"settings.section.notifications" = "Уведомления";
+"settings.section.about" = "О приложении";
 "settings.language" = "Язык";
 "settings.data" = "Данные";
 "settings.others" = "Прочее";
@@ -142,6 +146,10 @@
 
 "analytics.title" = "Аналитика";
 "analytics.period" = "Период";
+"analytics.savings_rate_caption" = "Доля накоплений: %d%% от дохода в цели";
+"analytics.categories_detail" = "Список категорий";
+"analytics.pie_hero_period" = "за месяц";
+"analytics.pie_tap_hint" = "Нажмите на диаграмму, чтобы увидеть детали.";
 "analytics.income_breakdown" = "Структура бюджета";
 "analytics.no_data" = "Нет данных за этот период";
 "analytics.vs_last_month" = "к прошлому месяцу";
@@ -165,6 +173,7 @@
 "add_transaction.expense" = "Расход";
 "add_transaction.income" = "Доход";
 "add_transaction.note_optional" = "Заметка (необязательно)";
+"add_transaction.details" = "Подробнее";
 "add_transaction.add_note_placeholder" = "Добавить заметку...";
 "add_transaction.save_transaction" = "Сохранить";
 "add_transaction.new_category" = "Новая категория";

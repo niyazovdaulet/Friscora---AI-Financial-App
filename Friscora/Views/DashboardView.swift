@@ -64,6 +64,7 @@ struct DashboardView: View {
                         dashboardEntranceDone = true
                     }
                 }
+                .scrollIndicators(.hidden, axes: .vertical)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

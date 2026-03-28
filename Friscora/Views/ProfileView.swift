@@ -27,209 +27,174 @@ struct ProfileView: View {
             ZStack {
                 AppColorTheme.background
                     .ignoresSafeArea()
-                
-            Form {
-                    // Section 1: General
-                    Section(L10n("settings.general")) {
-                    // Language
-                    NavigationLink {
-                        LanguageSettingsView()
-                    } label: {
-                        HStack {
-                            Image(systemName: "globe")
-                                .foregroundColor(AppColorTheme.sapphire)
-                                .frame(width: 24)
-                            Text(L10n("settings.language"))
-                        }
-                    }
-                    
-                    // Notifications
-                    NavigationLink {
-                        NotificationsSettingsView()
-                    } label: {
-                    HStack {
-                            Image(systemName: "bell.fill")
-                                .foregroundColor(.blue)
-                                .frame(width: 24)
-                            Text(L10n("settings.notifications"))
-                        }
-                    }
-                    
-                    // Currency
-                    NavigationLink {
-                        CurrencySettingsView()
-                    } label: {
-                    HStack {
-                            Image(systemName: "dollarsign.circle.fill")
-                                .foregroundColor(.green)
-                                .frame(width: 24)
-                        Text(L10n("settings.currency"))
-                        Spacer()
-                        Text(userProfileService.profile.currency)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                    // Authentication
-                    HStack {
-                        Image(systemName: "lock.fill")
-                            .foregroundColor(.orange)
-                            .frame(width: 24)
-                        Text(L10n("settings.authentication"))
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { userProfileService.profile.isAuthenticationEnabled },
-                            set: { newValue in
-                                if newValue {
-                                    // Enable authentication - show setup
-                                    showingAuthSetup = true
-                                } else {
-                                    // Disable authentication - require verification
-                                    showingAuthDisable = true
-                                }
+
+                Form {
+                    Section(L10n("settings.section.account")) {
+                        NavigationLink {
+                            LanguageSettingsView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "globe")
+                                    .foregroundColor(AppColorTheme.sapphire)
+                                    .frame(width: 24)
+                                Text(L10n("settings.language"))
                             }
-                        ))
-                    }
-                    .sheet(isPresented: $showingAuthSetup) {
-                        AuthenticationSetupView(isPresented: $showingAuthSetup)
-                            .presentationCornerRadius(24)
-                            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                    }
-                    .sheet(isPresented: $showingAuthDisable) {
-                        AuthenticationDisableView(isPresented: $showingAuthDisable)
-                            .presentationCornerRadius(24)
-                            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                    }
-                }
-                
-                // Section 2: Data
-                Section(L10n("settings.data")) {
-                    // iCloud Sync
-                    NavigationLink {
-                        ICloudSyncView()
-                    } label: {
-                        HStack {
-                            Image(systemName: "icloud.fill")
-                                .foregroundColor(.blue)
-                                .frame(width: 24)
-                            Text(L10n("settings.icloud_sync"))
                         }
-                    }
-                    
-                    // Export Data
-                    NavigationLink {
-                        ExportDataView()
-                    } label: {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up.fill")
-                                .foregroundColor(.purple)
-                                .frame(width: 24)
-                            Text(L10n("settings.export_data"))
-                        }
-                    }
-                    
-                    // Erase Data
-                    NavigationLink {
-                        EraseDataView()
-                    } label: {
-                        HStack {
-                            Image(systemName: "trash.fill")
-                                .foregroundColor(.red)
-                                .frame(width: 24)
-                            Text(L10n("settings.erase_data"))
-                        }
-                    }
-                }
-                
-                // Section 3: Others
-                Section(L10n("settings.others")) {
-                    // About - App Version
-                    HStack {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundColor(.blue)
-                            .frame(width: 24)
-                        Text(L10n("settings.about"))
-                        Spacer()
-                        Text(appVersion)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // Feedback
-                    Button {
-                        HapticHelper.lightImpact()
-                        showingFeedback = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "envelope.fill")
-                                .foregroundColor(.blue)
-                                .frame(width: 24)
-                            Text(L10n("settings.feedback"))
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(AppColorTheme.textTertiary)
-                        }
-                    }
-                    .foregroundColor(AppColorTheme.textPrimary)
-                    .sheet(isPresented: $showingFeedback) {
-                        FeedbackView(isPresented: $showingFeedback)
-                            .presentationCornerRadius(24)
-                            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                    }
-                }
-                
-                // Rate App Button Section
-                Section {
-                    Button {
-                        HapticHelper.lightImpact()
-                        requestAppReview()
-                    } label: {
-                        HStack(spacing: 16) {
-                            // Icon in circle with gradient
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.yellow.opacity(0.3),
-                                                Color.yellow.opacity(0.15)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 48, height: 48)
-                                
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(.yellow)
-                                    .font(.system(size: 20))
-                            }
-                            
-                            // Text content
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(L10n("settings.tap_to_rate"))
-                                    .font(.headline)
-                                    .foregroundColor(AppColorTheme.textPrimary)
-                                
-                                Text(L10n("settings.help_improve"))
-                                    .font(.caption)
+
+                        NavigationLink {
+                            CurrencySettingsView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "dollarsign.circle.fill")
+                                    .foregroundColor(AppColorTheme.incomeIndicator)
+                                    .frame(width: 24)
+                                Text(L10n("settings.currency"))
+                                Spacer()
+                                Text(userProfileService.profile.currency)
                                     .foregroundColor(AppColorTheme.textSecondary)
                             }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(AppColorTheme.textTertiary)
                         }
-                        .padding()
-                        .background(AppColorTheme.cardBackground)
-                        .cornerRadius(16)
                     }
-                    .buttonStyle(.plain)
-                }
+
+                    Section(L10n("settings.section.security")) {
+                        HStack {
+                            Image(systemName: "lock.shield.fill")
+                                .foregroundColor(AppColorTheme.sapphire)
+                                .frame(width: 24)
+                            Text(L10n("settings.authentication"))
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { userProfileService.profile.isAuthenticationEnabled },
+                                set: { nv in
+                                    if nv {
+                                        showingAuthSetup = true
+                                    } else {
+                                        showingAuthDisable = true
+                                    }
+                                }
+                            ))
+                        }
+                        .sheet(isPresented: $showingAuthSetup) {
+                            AuthenticationSetupView(isPresented: $showingAuthSetup)
+                                .presentationCornerRadius(24)
+                                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                        }
+                        .sheet(isPresented: $showingAuthDisable) {
+                            AuthenticationDisableView(isPresented: $showingAuthDisable)
+                                .presentationCornerRadius(24)
+                                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                        }
+                    }
+
+                    Section(L10n("settings.section.notifications")) {
+                        NavigationLink {
+                            NotificationsSettingsView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "bell.badge.fill")
+                                    .foregroundColor(AppColorTheme.accent)
+                                    .frame(width: 24)
+                                Text(L10n("settings.notifications"))
+                            }
+                        }
+                    }
+
+                    Section(L10n("settings.data")) {
+                        NavigationLink {
+                            ICloudSyncView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "icloud.fill")
+                                    .foregroundColor(AppColorTheme.sapphire)
+                                    .frame(width: 24)
+                                Text(L10n("settings.icloud_sync"))
+                            }
+                        }
+
+                        NavigationLink {
+                            ExportDataView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up.fill")
+                                    .foregroundColor(AppColorTheme.incomeIndicator)
+                                    .frame(width: 24)
+                                Text(L10n("settings.export_data"))
+                            }
+                        }
+
+                        NavigationLink {
+                            EraseDataView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "trash.fill")
+                                    .foregroundColor(AppColorTheme.negative)
+                                    .frame(width: 24)
+                                Text(L10n("settings.erase_data"))
+                            }
+                        }
+                    }
+
+                    Section(L10n("settings.section.about")) {
+                        HStack {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundColor(AppColorTheme.sapphire)
+                                .frame(width: 24)
+                            Text(L10n("settings.about"))
+                            Spacer()
+                            Text(appVersion)
+                                .font(AppTypography.caption)
+                                .foregroundColor(AppColorTheme.textSecondary)
+                        }
+
+                        Button {
+                            HapticHelper.lightImpact()
+                            showingFeedback = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "envelope.fill")
+                                    .foregroundColor(AppColorTheme.accent)
+                                    .frame(width: 24)
+                                Text(L10n("settings.feedback"))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(AppColorTheme.textTertiary)
+                            }
+                        }
+                        .foregroundColor(AppColorTheme.textPrimary)
+                        .sheet(isPresented: $showingFeedback) {
+                            FeedbackView(isPresented: $showingFeedback)
+                                .presentationCornerRadius(24)
+                                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                        }
+
+                        Button {
+                            HapticHelper.lightImpact()
+                            requestAppReview()
+                        } label: {
+                            HStack {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(AppColorTheme.goldAccent)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(L10n("settings.tap_to_rate"))
+                                        .font(AppTypography.bodySemibold)
+                                        .foregroundColor(AppColorTheme.textPrimary)
+                                    Text(L10n("settings.help_improve"))
+                                        .font(AppTypography.caption)
+                                        .foregroundColor(AppColorTheme.textSecondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(AppColorTheme.textTertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .scrollContentBackground(.hidden)
+                .scrollIndicators(.hidden, axes: .vertical)
             }
             .navigationTitle(L10n("settings.title"))
         }

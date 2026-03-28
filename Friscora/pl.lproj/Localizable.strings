@@ -2,6 +2,10 @@
 
 "settings.title" = "Ustawienia";
 "settings.general" = "Ogólne";
+"settings.section.account" = "Konto";
+"settings.section.security" = "Bezpieczeństwo";
+"settings.section.notifications" = "Powiadomienia";
+"settings.section.about" = "O aplikacji";
 "settings.language" = "Język";
 "settings.data" = "Dane";
 "settings.others" = "Inne";
@@ -142,6 +146,10 @@
 
 "analytics.title" = "Analiza";
 "analytics.period" = "Okres";
+"analytics.savings_rate_caption" = "Wskaźnik oszczędzania: %d%% dochodu na cele";
+"analytics.categories_detail" = "Lista kategorii";
+"analytics.pie_hero_period" = "w tym miesiącu";
+"analytics.pie_tap_hint" = "Dotknij wykresu, aby zobaczyć szczegóły kategorii.";
 "analytics.income_breakdown" = "Struktura budżetu";
 "analytics.no_data" = "Brak danych za ten okres";
 "analytics.vs_last_month" = "vs poprzedni miesiąc";
@@ -165,6 +173,7 @@
 "add_transaction.expense" = "Wydatek";
 "add_transaction.income" = "Przychód";
 "add_transaction.note_optional" = "Notatka (opcjonalnie)";
+"add_transaction.details" = "Szczegóły";
 "add_transaction.add_note_placeholder" = "Dodaj notatkę...";
 "add_transaction.save_transaction" = "Zapisz transakcję";
 "add_transaction.new_category" = "Nowa kategoria";

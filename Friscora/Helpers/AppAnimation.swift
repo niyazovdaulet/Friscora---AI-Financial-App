@@ -52,8 +52,20 @@ enum AppAnimation {
     /// Chart appear and type switch (pie/bar/line).
     static let chartReveal = Animation.easeOut(duration: 0.48)
 
-    /// Pie chart segment fill (slightly longer).
-    static let chartPieReveal = Animation.easeOut(duration: 0.6)
+    /// Pie chart segment fill (legacy single progress; prefer Analytics staggered slices).
+    static let chartPieReveal = Animation.easeOut(duration: 1.25)
+
+    /// Analytics spending hero: opacity/scale entrance (longer than chartReveal so pie stagger reads clearly).
+    static let analyticsHeroReveal = Animation.easeOut(duration: 1.45)
+
+    /// Analytics pie: delay before first wedge begins (after hero starts).
+    static let analyticsPieLeadDelay: TimeInterval = 0.22
+
+    /// Analytics pie: start offset between wedges (largest-first order).
+    static let analyticsPieStagger: TimeInterval = 0.11
+
+    /// Analytics pie: each wedge’s sweep duration (easeOut applied in `withAnimation`).
+    static let analyticsPieSliceSweepDuration: TimeInterval = 0.52
 
     /// Bar chart fill progress (slightly longer for bar growth).
     static let chartBarReveal = Animation.easeOut(duration: 0.55)
