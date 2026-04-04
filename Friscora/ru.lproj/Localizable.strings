@@ -5,6 +5,8 @@
 "settings.section.account" = "Аккаунт";
 "settings.section.security" = "Безопасность";
 "settings.section.notifications" = "Уведомления";
+"settings.section.schedule" = "Расписание";
+"settings.schedule_forecast_footer" = "Прогноз дохода и синхронизация зарплаты учитывают только запланированные рабочие смены. Личные события в расписании не включаются (пока не появится отдельная опция).";
 "settings.section.about" = "О приложении";
 "settings.language" = "Язык";
 "settings.data" = "Данные";
@@ -86,7 +88,8 @@
 "language.applying" = "Применение языка…";
 
 "tab.dashboard" = "Главная";
-"tab.work" = "Работа";
+"tab.schedule" = "Расписание";
+"tab.work" = "Расписание";
 "tab.add" = "Добавить";
 "tab.goals" = "Цели";
 "tab.analytics" = "Аналитика";
@@ -120,9 +123,28 @@
 "category.other" = "Другое";
 "category.name" = "Название категории";
 "category.icon" = "Иконка";
+"category.chart_color" = "Цвет на диаграмме";
+"category.chart_color.hint" = "В разбивке расходов и аналитике.";
+"category.chart_color.a11y_swatch" = "Вариант цвета %@";
+"category.chart_color.a11y_locked" = "Цвет %@ уже занят — выберите другой.";
+"category.name_taken" = "Категория с таким названием уже есть.";
+"category.icon_show_more" = "Ещё";
+"category.icon_show_less" = "Свернуть";
+"category.icon.tap_to_change" = "Выберите значок";
+"category.icon.collapse_hint" = "Нажмите, чтобы развернуть и выбрать из полного набора.";
+"category.icon_collapse" = "Скрыть";
+"category.icon.a11y_option" = "Значок %@";
+"category.icon.a11y_locked" = "Значок %@ уже занят — выберите другой.";
+
+"deleted_category.expense_label" = "Удалённая категория";
+"deleted_category.income_title" = "Удалённая категория";
+
+"add_transaction.quick_categories_hint" = "Первые шесть из «Редактировать категории» — меняйте порядок там, чтобы обновить сетку.";
 
 "dashboard.income" = "Доход";
 "dashboard.expenses" = "Расходы";
+"dashboard.kpi.savings" = "Сбережения";
+"dashboard.kpi.balance" = "Баланс";
 "dashboard.remaining_balance" = "Остаток";
 "dashboard.spending_by_category" = "Расходы по категориям";
 "dashboard.empty_categories" = "Пока нет данных. Начните отслеживать расходы осознанно.";
@@ -143,6 +165,7 @@
 "dashboard.edit_income" = "Изменить доход";
 "dashboard.income_label" = "Доход";
 "dashboard.to_goal" = "В цель: %@";
+"dashboard.schedule_income_note" = "Зарплатные записи с вкладки «Расписание» считаются только по рабочим сменам; личные события на них не влияют.";
 
 "analytics.title" = "Аналитика";
 "analytics.period" = "Период";
@@ -153,6 +176,9 @@
 "analytics.income_breakdown" = "Структура бюджета";
 "analytics.no_data" = "Нет данных за этот период";
 "analytics.vs_last_month" = "к прошлому месяцу";
+"analytics.trend.empty_income" = "Дохода пока нет";
+"analytics.trend.empty_expenses" = "Расходов пока нет";
+"analytics.trend.empty_savings" = "Накоплений пока нет";
 "analytics.vs_prev" = "к прошл. м.";
 "analytics.insights_title" = "Инсайты";
 "analytics.insight.top_category" = "%@ — %d%% ваших расходов.";
@@ -168,6 +194,20 @@
 "analytics.pie.expenses" = "Расходы";
 "analytics.pie.savings" = "Накопления";
 "analytics.pie.remaining" = "Остаток";
+"analytics.income_split.title" = "Распределение дохода за месяц";
+"analytics.income_split.of_income" = "от дохода";
+"analytics.income_split.used_of_income" = "%@ из %@";
+"analytics.income_split.summary_spent_of_income" = "Потрачено %@ из %@";
+"analytics.income_split.summary_allocated_only" = "%@ на расходы и накопления";
+"analytics.income_split.bar_full_equals_income" = "Полоса соответствует доходу за этот месяц.";
+"analytics.income_split.overflow_hint" = "Расходы и накопления больше дохода; шкала приведена к сумме оттоков.";
+"analytics.income_split.no_income_hint" = "Полоса показывает расходы и накопления относительно друг друга. Добавьте доход, чтобы видеть остаток как долю дохода.";
+"analytics.income_split.a11y.hint" = "Показывает или скрывает полосу распределения дохода и легенду.";
+"analytics.income_split.a11y.expanded" = "Развёрнуто";
+"analytics.income_split.a11y.collapsed" = "Свёрнуто";
+"analytics.income_split.a11y.bar_label" = "%@, %@";
+"analytics.income_split.a11y.segmented_summary" = "Сводка: расходы %@, накопления %@, остаток %@, к доходу %@.";
+"analytics.income_split.a11y.segmented_summary_no_remaining" = "Расходы %@, накопления %@; шкала по сумме расходов и накоплений.";
 
 "add_transaction.title" = "Добавить транзакцию";
 "add_transaction.expense" = "Расход";
@@ -193,13 +233,74 @@
 "work.estimated_salary" = "Ожидаемая зарплата";
 "work.salary_projection" = "Прогноз зарплаты";
 "work.no_payments_scheduled" = "Нет запланированных выплат";
-"work.delete_month_confirm" = "Удалить все часы работы за %@? Это нельзя отменить.";
+"work.delete_month_confirm" = "Удалить все запланированные рабочие смены за %@? Личные события останутся. Это нельзя отменить.";
 "work.hours_short" = "ч";
-"work.clear_all" = "Очистить все часы";
+"work.clear_all" = "Очистить смены";
 "work.clear_all_button" = "Очистить всё";
+
+"schedule.onboarding.title" = "Зарплата по рабочим сменам";
+"schedule.onboarding.detail" = "Нажмите дату, чтобы открыть композер смен—добавьте смену или личное событие, не покидая календарь. Добавьте работу для часов, оценки зарплаты и прогноза.";
+"schedule.forecast_scope_title" = "Как устроен прогноз";
+"schedule.segment.work" = "Смена";
+"schedule.segment.event" = "Событие";
+"schedule.add_kind_picker_a11y" = "Добавить: рабочая смена или личное событие";
+"schedule.day.items_header" = "Этот день";
+"schedule.day.empty" = "Пока пусто — выберите вкладку ниже.";
+"schedule.work_form_header" = "Рабочая смена";
+"schedule.work_form_no_jobs" = "Добавьте работу (кнопка с портфелем), чтобы вести оплачиваемые смены.";
+"schedule.event.section_title" = "Личное событие";
+"schedule.event.title_label" = "Название";
+"schedule.event.title_placeholder" = "Встреча, блок времени…";
+"schedule.event.title_rules_hint" = "Не меньше 3 символов; нельзя только из цифр.";
+"schedule.event.start_label" = "Начало";
+"schedule.event.end_label" = "Конец";
+"schedule.event.show_busy" = "Показывать как «Занят» (скрыть название в календаре)";
+"schedule.event.forecast_footer" = "Не меняет прогноз дохода и синхронизацию зарплаты.";
+"schedule.event.untitled" = "Событие";
+"schedule.busy_placeholder" = "Занят";
+"schedule.toolbar.jobs_a11y" = "Работы и настройки выплат";
+"schedule.projection_based_on_shifts" = "По %lld запланированным сменам в этом месяце.";
+"schedule.overlap.title" = "Пересечение по времени";
+"schedule.overlap.message" = "Это время пересекается с другим событием в этот день.";
+"schedule.overlap.save_anyway" = "Всё равно сохранить";
+"schedule.a11y.work_shift" = "Рабочая смена";
+"schedule.a11y.personal_event" = "Личное событие";
+"schedule.a11y.work_count" = "%lld смен";
+"schedule.a11y.event_count" = "%lld личных событий";
+"schedule.a11y.open_day_hint" = "Открывает подробности дня.";
+"schedule.a11y.add_day_hint" = "Добавить смену или личное событие.";
+"schedule.a11y.day_cell_hint" = "Открывает или закрывает композер дня. Повторное нажатие на ту же дату закрывает его.";
+"schedule.a11y.inspector_open" = "Детали открыты";
+"schedule.a11y.composer_open" = "Композер открыт";
+"schedule.composer.add_to_day_subtitle" = "Добавить в этот день";
+"schedule.composer.action_work" = "+ Рабочая смена";
+"schedule.composer.action_event" = "+ Личное событие";
+"schedule.composer.dismiss_a11y" = "Закрыть композер дня";
+"schedule.composer.dismiss_hint_a11y" = "Закрывает композер и возвращает к календарю.";
+"schedule.composer.back_collapsed_a11y" = "Назад к быстрым действиям";
+"schedule.composer.earnings_preview_title" = "Расчётный заработок";
+"schedule.composer.earnings_hours_money" = "%1$.1f ч · %2$@";
+"schedule.composer.rate_missing" = "Добавьте почасовую ставку в настройках работы, чтобы увидеть оценку для этой смены.";
+"schedule.composer.fixed_monthly_hint" = "Фиксированная месячная оплата — длительность смены здесь не меняет оплату за смену.";
+"schedule.composer.stats_sep" = " · ";
+"schedule.composer.entry_count" = "%lld записей";
+"schedule.composer.adjust_times" = "Изменить время";
+"schedule.composer.event_add" = "Добавить событие";
+"schedule.composer.add_shift" = "Добавить смену";
+"schedule.composer.approx_earnings_fragment" = "≈ %@";
+"schedule.inspector.close_a11y" = "Закрыть детали дня";
+"schedule.inspector.close_hint_a11y" = "Сворачивает панель поверх календаря.";
+"schedule.inspector.overlay_a11y" = "Детали дня показаны поверх календаря.";
+"schedule.inspector.add_more_a11y" = "Добавить ещё смену или личное событие";
+"schedule.inspector.moved_here_a11y" = "Детали дня открыты под календарём.";
+"schedule.item.work_fallback" = "Работа";
+"schedule.summary_forecast_footer" = "Прогноз учитывает только рабочие смены, не личные события.";
 
 "work_hours.title" = "Часы работы";
 "work_hours.select_job" = "Выберите работу";
+"work_hours.change_job" = "Сменить работу";
+"work_hours.change_shift" = "Сменить смену";
+"work_hours.add_shift_a11y" = "Добавить смену";
 "work_hours.hours_worked" = "Отработано часов";
 "work_hours.hrs" = "ч";
 "work_hours.save" = "Сохранить";
@@ -307,13 +408,20 @@
 "history.apply_range" = "Применить период";
 "history.select_date_range" = "Выберите период";
 
-"edit_categories.title" = "Редактировать категории";
+"edit_categories.title" = "Категории";
 "edit_categories.builtin_not_editable" = "Встроенные категории нельзя изменить";
 "edit_categories.builtin" = "Встроенные категории";
 "edit_categories.no_custom" = "Нет своих категорий";
 "edit_categories.custom" = "Свои категории";
-"edit_categories.tap_to_edit" = "Нажмите для редактирования или смахните для удаления";
+"edit_categories.tap_to_edit" = "Нажмите для редактирования или перетащите, чтобы изменить порядок";
+"edit_categories.quick_pick_explanation" = "Нажмите «Изменить» на панели и перетащите строки. Первые шесть категорий в списке показываются в «Добавить расход». Остальные по-прежнему доступны в приложении.";
+"edit_categories.all_categories_header" = "Все категории";
+"edit_categories.quick_pick_divider_badge" = "ДОБАВИТЬ РАСХОД";
+"edit_categories.quick_pick_divider_hint" = "Шесть категорий выше отображаются при добавлении расхода.";
 "edit_category.title" = "Редактировать категорию";
+"edit_category.delete" = "Удалить категорию";
+"edit_category.delete_confirm_title" = "Удалить эту категорию?";
+"edit_category.delete_confirm_message" = "Все расходы в этой категории будут удалены, а суммы вернутся в баланс. Каждая операция также появится в истории как доход с названием Удалённая категория.";
 
 "chat.title" = "ИИ-советник";
 "chat.thinking" = "Думаю...";

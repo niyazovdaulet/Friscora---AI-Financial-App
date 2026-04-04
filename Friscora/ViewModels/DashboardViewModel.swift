@@ -18,7 +18,7 @@ class DashboardViewModel: ObservableObject {
     @Published var carryoverAmount: Double = 0
     @Published var activeGoals: [Goal] = []
     @Published var mergedMonths: Set<String> = []
-    
+
     private let expenseService = ExpenseService.shared
     private let incomeService = IncomeService.shared
     private let goalService = GoalService.shared
@@ -239,99 +239,24 @@ class DashboardViewModel: ObservableObject {
         categoryBreakdown = expenseService.expensesByCategoryDisplayForMonth(selectedMonth)
         activeGoals = goalService.activeGoalsWithProgress()
     }
-    
+
     /// Async version that properly converts currencies
     func updateDataAsync() {
         Task {
             let currentCurrency = userProfileService.profile.currency
             let currencyService = CurrencyService.shared
-            
-            // Get month expenses and incomes
-            let monthExpenses = expenseService.expensesForMonth(selectedMonth)
-            let monthIncomes = incomeService.incomesForMonth(selectedMonth)
-            
-            // Convert expenses
-            var totalExpensesConverted: Double = 0
             let customCategoryService = CustomCategoryService.shared
-            var categoryTotals: [CategoryDisplayInfo: Double] = [:]
-            
-            for expense in monthExpenses {
-                let amount: Double
-                if expense.currency == currentCurrency {
-                    amount = expense.amount
-                } else {
-                    do {
-                        amount = try await currencyService.convert(
-                            amount: expense.amount,
-                            from: expense.currency,
-                            to: currentCurrency
-                        )
-                    } catch {
-                        amount = expense.amount // Fallback
-                    }
-                }
-                totalExpensesConverted += amount
-                
-                // Check if expense has a custom category
-                if let customId = expense.customCategoryId,
-                   let customCategory = customCategoryService.customCategories.first(where: { $0.id == customId }) {
-                    let categoryInfo = CategoryDisplayInfo(customCategory: customCategory)
-                    categoryTotals[categoryInfo, default: 0] += amount
-                } else {
-                    // Use standard category
-                    let categoryInfo = CategoryDisplayInfo(category: expense.category)
-                    categoryTotals[categoryInfo, default: 0] += amount
-                }
-            }
-            
-            // Convert incomes
-            var totalIncomeConverted: Double = 0
-            for income in monthIncomes {
-                if income.currency == currentCurrency {
-                    totalIncomeConverted += income.amount
-                } else {
-                    do {
-                        let converted = try await currencyService.convert(
-                            amount: income.amount,
-                            from: income.currency,
-                            to: currentCurrency
-                        )
-                        totalIncomeConverted += converted
-                    } catch {
-                        totalIncomeConverted += income.amount // Fallback
-                    }
-                }
-            }
-            
+
+            let selectedSnapshot = await convertedMonthSnapshot(
+                month: selectedMonth,
+                currentCurrency: currentCurrency,
+                currencyService: currencyService,
+                customCategoryService: customCategoryService
+            )
+
             // No automatic carryover: past months only add to balance when user explicitly merges them.
             let carryover: Double = 0
-            
-            // Calculate goal allocations for the month
-            let monthGoalActivities = goalService.activitiesForMonth(selectedMonth)
-            var totalGoalAllocations: Double = 0
-            
-            for activity in monthGoalActivities {
-                // Find the goal to get its currency
-                if let goal = goalService.goals.first(where: { $0.id == activity.goalId }) {
-                    let goalCurrency = goal.effectiveCurrency
-                    let amount: Double
-                    if goalCurrency == currentCurrency {
-                        amount = activity.amount
-                    } else {
-                        do {
-                            amount = try await currencyService.convert(
-                                amount: activity.amount,
-                                from: goalCurrency,
-                                to: currentCurrency
-                            )
-                        } catch {
-                            amount = activity.amount // Fallback
-                        }
-                    }
-                    totalGoalAllocations += amount
-                }
-            }
-            
+
             // Get active goals
             let activeGoalsList = goalService.activeGoalsWithProgress()
             
@@ -350,7 +275,7 @@ class DashboardViewModel: ObservableObject {
                         var monthExpenseTotal: Double = 0
                         var monthGoalTotal: Double = 0
                         
-                        for income in monthIncomes {
+                        for income in monthIncomes where income.countsTowardBalance {
                             if income.currency == currentCurrency {
                                 monthIncomeTotal += income.amount
                             } else {
@@ -411,14 +336,14 @@ class DashboardViewModel: ObservableObject {
             
             // Update UI on main thread
             await MainActor.run {
-                monthlyIncome = totalIncomeConverted
-                totalExpenses = totalExpensesConverted
-                goalAllocations = totalGoalAllocations
+                monthlyIncome = selectedSnapshot.income
+                totalExpenses = selectedSnapshot.expenses
+                goalAllocations = selectedSnapshot.goals
                 carryoverAmount = carryover
                 remainingBalance = monthlyIncome + carryoverAmount + mergedBalance - totalExpenses - goalAllocations
-                categoryBreakdown = categoryTotals
+                categoryBreakdown = selectedSnapshot.categoryTotals
                 activeGoals = activeGoalsList
-                
+
                 // Debug print for financial summary
                 let formatter = DateFormatter()
                 formatter.dateFormat = "MMMM yyyy"
@@ -448,6 +373,105 @@ class DashboardViewModel: ObservableObject {
     
     func refresh() {
         updateDataAsync()
+    }
+
+    // MARK: - Month snapshot (FX)
+
+    private struct MonthFinancialSnapshot {
+        let income: Double
+        let expenses: Double
+        let goals: Double
+        let categoryTotals: [CategoryDisplayInfo: Double]
+    }
+
+    private func convertedMonthSnapshot(
+        month: Date,
+        currentCurrency: String,
+        currencyService: CurrencyService,
+        customCategoryService: CustomCategoryService
+    ) async -> MonthFinancialSnapshot {
+        let monthExpenses = expenseService.expensesForMonth(month)
+        let monthIncomes = incomeService.incomesForMonth(month)
+        var totalExpensesConverted: Double = 0
+        var categoryTotals: [CategoryDisplayInfo: Double] = [:]
+
+        for expense in monthExpenses {
+            let amount: Double
+            if expense.currency == currentCurrency {
+                amount = expense.amount
+            } else {
+                do {
+                    amount = try await currencyService.convert(
+                        amount: expense.amount,
+                        from: expense.currency,
+                        to: currentCurrency
+                    )
+                } catch {
+                    amount = expense.amount
+                }
+            }
+            totalExpensesConverted += amount
+
+            if let customId = expense.customCategoryId,
+               let customCategory = customCategoryService.customCategories.first(where: { $0.id == customId }) {
+                let categoryInfo = CategoryDisplayInfo(customCategory: customCategory)
+                categoryTotals[categoryInfo, default: 0] += amount
+            } else if let customId = expense.customCategoryId {
+                let categoryInfo = CategoryDisplayInfo(orphanCustomCategoryId: customId)
+                categoryTotals[categoryInfo, default: 0] += amount
+            } else {
+                let categoryInfo = CategoryDisplayInfo(category: expense.category)
+                categoryTotals[categoryInfo, default: 0] += amount
+            }
+        }
+
+        var totalIncomeConverted: Double = 0
+        for income in monthIncomes where income.countsTowardBalance {
+            if income.currency == currentCurrency {
+                totalIncomeConverted += income.amount
+            } else {
+                do {
+                    let converted = try await currencyService.convert(
+                        amount: income.amount,
+                        from: income.currency,
+                        to: currentCurrency
+                    )
+                    totalIncomeConverted += converted
+                } catch {
+                    totalIncomeConverted += income.amount
+                }
+            }
+        }
+
+        let monthGoalActivities = goalService.activitiesForMonth(month)
+        var totalGoalAllocations: Double = 0
+        for activity in monthGoalActivities {
+            if let goal = goalService.goals.first(where: { $0.id == activity.goalId }) {
+                let goalCurrency = goal.effectiveCurrency
+                let amount: Double
+                if goalCurrency == currentCurrency {
+                    amount = activity.amount
+                } else {
+                    do {
+                        amount = try await currencyService.convert(
+                            amount: activity.amount,
+                            from: goalCurrency,
+                            to: currentCurrency
+                        )
+                    } catch {
+                        amount = activity.amount
+                    }
+                }
+                totalGoalAllocations += amount
+            }
+        }
+
+        return MonthFinancialSnapshot(
+            income: totalIncomeConverted,
+            expenses: totalExpensesConverted,
+            goals: totalGoalAllocations,
+            categoryTotals: categoryTotals
+        )
     }
 }
 

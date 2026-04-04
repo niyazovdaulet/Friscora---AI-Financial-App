@@ -2,7 +2,7 @@
 //  SalarySyncService.swift
 //  Friscora
 //
-//  Syncs Work tab salary payments to Dashboard income. Creates one income per
+//  Syncs scheduled work-shift salary to Dashboard income. Creates one income per
 //  (job, payment date) when that date is today or in the past; skips future and duplicates.
 //
 

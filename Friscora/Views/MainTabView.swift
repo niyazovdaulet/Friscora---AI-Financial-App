@@ -43,7 +43,7 @@ struct MainTabView: View {
                     }
                     .tag(0)
                 
-                AnalyticsView()
+                AnalyticsView(selectedTab: $selectedTab)
                     .tabItem {
                         Label(L10n("tab.analytics"), systemImage: "chart.pie.fill")
                     }
@@ -55,9 +55,9 @@ struct MainTabView: View {
                     }
                     .tag(2)
                 
-                WorkScheduleView()
+                ScheduleView()
                     .tabItem {
-                        Label(L10n("tab.work"), systemImage: "briefcase.fill")
+                        Label(L10n("tab.schedule"), systemImage: "calendar.badge.clock")
                     }
                     .tag(3)
                 

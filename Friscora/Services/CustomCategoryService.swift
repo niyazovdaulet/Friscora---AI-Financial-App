@@ -59,5 +59,23 @@ class CustomCategoryService: ObservableObject {
         customCategories.removeAll { $0.id == category.id }
         saveCategories()
     }
+
+    /// Deletes the category after removing linked expenses and adding matching income rows (balance restored). History shows reverts as income with the deleted-category title.
+    func deleteCategoryRevertingLinkedExpenses(_ category: CustomCategory) {
+        let linked = ExpenseService.shared.expenses.filter { $0.customCategoryId == category.id }
+        for expense in linked {
+            ExpenseService.shared.deleteExpense(expense)
+            IncomeService.shared.addIncome(
+                Income(
+                    amount: expense.amount,
+                    date: expense.date,
+                    note: nil,
+                    currency: expense.currency,
+                    source: .categoryDeletionRevert
+                )
+            )
+        }
+        deleteCategory(category)
+    }
 }
 

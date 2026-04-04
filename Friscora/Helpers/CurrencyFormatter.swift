@@ -25,14 +25,13 @@ struct CurrencyFormatter {
         return "\(formattedAmount) \(currencyCode)"
     }
     
-    /// Returns split components for hero/secondary amount UI. Use full format for &lt; 1M; for ≥1M/≥1B use compact string via formatCompact.
+    /// Returns split components for hero/secondary amount UI. Use full format for &lt; 1M; for ≥1M use compact **numeric** major + separate currency so `AmountView` can style PLN like other tiles.
     static func components(_ amount: Double, currencyCode: String) -> AmountComponents {
         let absAmount = abs(amount)
-        if absAmount >= 1_000_000_000 {
-            return AmountComponents(major: formatCompact(amount, currencyCode: currencyCode), minor: "", currency: "")
-        }
+        let sign = amount < 0 ? "-" : ""
         if absAmount >= 1_000_000 {
-            return AmountComponents(major: formatCompact(amount, currencyCode: currencyCode), minor: "", currency: "")
+            let major = String(format: "%@%.1fM", sign, absAmount / 1_000_000)
+            return AmountComponents(major: major, minor: "", currency: currencyCode)
         }
         let formatter = decimalFormatter(maxFractionDigits: 2)
         let full = formatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
@@ -43,6 +42,32 @@ struct CurrencyFormatter {
             minor = String(full[dotIndex...])
         }
         return AmountComponents(major: major, minor: minor, currency: currencyCode)
+    }
+
+    /// Numeric fragment + currency code for compact display (same rules as `formatCompact`) so UI can apply typographic hierarchy when space is tight.
+    static func compactAmountParts(_ amount: Double, currencyCode: String) -> (numeric: String, currency: String) {
+        let absAmount = abs(amount)
+        let sign = amount < 0 ? "-" : ""
+        if absAmount >= 1_000_000 {
+            return (String(format: "%@%.1fM", sign, absAmount / 1_000_000), currencyCode)
+        }
+        if absAmount >= 1_000 {
+            let k = absAmount / 1_000
+            let numeric: String
+            if k == floor(k) {
+                numeric = String(format: "%@%.0fk", sign, k)
+            } else {
+                numeric = String(format: "%@%.1fk", sign, k)
+            }
+            return (numeric, currencyCode)
+        }
+        let full = format(amount, currencyCode: currencyCode)
+        if let range = full.range(of: " ", options: .backwards) {
+            let num = String(full[..<range.lowerBound])
+            let rest = full[range.upperBound...].trimmingCharacters(in: .whitespaces)
+            return (num, rest.isEmpty ? currencyCode : String(rest))
+        }
+        return (full, currencyCode)
     }
 
     /// Compact format for tight spaces: 13_279_479 → "13.3M KZT", 395_101 → "395.1k KZT". Use in summary cards so large amounts fit.

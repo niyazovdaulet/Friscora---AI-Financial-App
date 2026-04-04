@@ -14,6 +14,7 @@ struct DashboardView: View {
     @StateObject private var expenseService = ExpenseService.shared
     @StateObject private var incomeService = IncomeService.shared
     @StateObject private var goalService = GoalService.shared
+    @StateObject private var workScheduleService = WorkScheduleService.shared
     @Binding var selectedTab: Int
     @State private var isButtonPressed = false
     @State private var isCategorySectionExpanded = true
@@ -35,29 +36,25 @@ struct DashboardView: View {
                 
                 ScrollView {
                     VStack(spacing: AppSpacing.xl) {
-                        // Summary cards
                         summarySection
-                            .opacity(dashboardEntranceDone ? 1 : 0)
-                            .offset(y: dashboardEntranceDone ? 0 : 16)
-                            .animation(AppAnimation.quickUI.delay(0), value: dashboardEntranceDone)
-                        
-                        // Category breakdown
+
+                        // Category breakdown (stagger after KPI grid)
                         categorySection
                             .opacity(dashboardEntranceDone ? 1 : 0)
                             .offset(y: dashboardEntranceDone ? 0 : 16)
-                            .animation(AppAnimation.quickUI.delay(0.05), value: dashboardEntranceDone)
-                        
+                            .animation(AppAnimation.quickUI.delay(0.2), value: dashboardEntranceDone)
+
                         // Goals section
                         goalsSection
                             .opacity(dashboardEntranceDone ? 1 : 0)
                             .offset(y: dashboardEntranceDone ? 0 : 16)
-                            .animation(AppAnimation.quickUI.delay(0.1), value: dashboardEntranceDone)
-                        
+                            .animation(AppAnimation.quickUI.delay(0.25), value: dashboardEntranceDone)
+
                         // Recent expenses
                         recentExpensesSection
                             .opacity(dashboardEntranceDone ? 1 : 0)
                             .offset(y: dashboardEntranceDone ? 0 : 16)
-                            .animation(AppAnimation.quickUI.delay(0.15), value: dashboardEntranceDone)
+                            .animation(AppAnimation.quickUI.delay(0.3), value: dashboardEntranceDone)
                     }
                     .padding(AppSpacing.m)
                     .onAppear {
@@ -116,11 +113,14 @@ struct DashboardView: View {
             .refreshable {
                 viewModel.refresh()
             }
+            .onChange(of: viewModel.selectedMonth) { _, _ in
+                withAnimation(AppAnimation.standard) {}
+            }
             .onReceive(expenseService.$expenses) { _ in
-                viewModel.updateData()
+                viewModel.updateDataAsync()
             }
             .onReceive(incomeService.$incomes) { _ in
-                viewModel.updateData()
+                viewModel.updateDataAsync()
             }
             .fullScreenCover(isPresented: $showHistoryView) {
                 HistoryView()
@@ -161,44 +161,46 @@ struct DashboardView: View {
     
     private var summarySection: some View {
         let currency = UserProfileService.shared.profile.currency
-        return VStack(spacing: AppSpacing.s) {
-            HStack(spacing: AppSpacing.s) {
-                SummaryCard(
-                    title: L10n("dashboard.income"),
-                    amount: viewModel.monthlyIncome,
-                    currencyCode: currency,
-                    amountStyle: .secondary,
-                    indicatorColor: AppColorTheme.incomeIndicator,
-                    icon: "arrow.down.circle.fill"
-                )
-                .opacity(dashboardEntranceDone ? 1 : 0)
-                .offset(y: dashboardEntranceDone ? 0 : 12)
-                .animation(AppAnimation.quickUI.delay(0), value: dashboardEntranceDone)
+        let columns = [
+            GridItem(.flexible(), spacing: AppSpacing.s),
+            GridItem(.flexible(), spacing: AppSpacing.s)
+        ]
+        return LazyVGrid(columns: columns, spacing: AppSpacing.s) {
+            DashboardKPICard(
+                title: L10n("dashboard.income"),
+                amount: viewModel.monthlyIncome,
+                currencyCode: currency,
+                accentColor: AppColorTheme.incomeIndicator,
+                entranceIndex: 0,
+                entranceReady: dashboardEntranceDone
+            )
 
-                SummaryCard(
-                    title: L10n("dashboard.expenses"),
-                    amount: viewModel.totalExpenses,
-                    currencyCode: currency,
-                    amountStyle: .secondary,
-                    indicatorColor: AppColorTheme.expenseIndicator,
-                    icon: "arrow.up.circle.fill"
-                )
-                .opacity(dashboardEntranceDone ? 1 : 0)
-                .offset(y: dashboardEntranceDone ? 0 : 12)
-                .animation(AppAnimation.quickUI.delay(0.05), value: dashboardEntranceDone)
-            }
+            DashboardKPICard(
+                title: L10n("dashboard.expenses"),
+                amount: viewModel.totalExpenses,
+                currencyCode: currency,
+                accentColor: AppColorTheme.expenseIndicator,
+                entranceIndex: 1,
+                entranceReady: dashboardEntranceDone
+            )
 
-            SummaryCard(
-                title: L10n("dashboard.remaining_balance"),
+            DashboardKPICard(
+                title: L10n("dashboard.kpi.savings"),
+                amount: viewModel.goalAllocations,
+                currencyCode: currency,
+                accentColor: AppColorTheme.savingsIndicator,
+                entranceIndex: 2,
+                entranceReady: dashboardEntranceDone
+            )
+
+            DashboardKPICard(
+                title: L10n("dashboard.kpi.balance"),
                 amount: viewModel.remainingBalance,
                 currencyCode: currency,
-                amountStyle: .hero,
-                indicatorColor: viewModel.remainingBalance >= 0 ? AppColorTheme.balanceIndicator : AppColorTheme.warning,
-                icon: "banknote.fill"
+                accentColor: viewModel.remainingBalance >= 0 ? AppColorTheme.balanceIndicator : AppColorTheme.warning,
+                entranceIndex: 3,
+                entranceReady: dashboardEntranceDone
             )
-            .opacity(dashboardEntranceDone ? 1 : 0)
-            .offset(y: dashboardEntranceDone ? 0 : 12)
-            .animation(AppAnimation.quickUI.delay(0.1), value: dashboardEntranceDone)
         }
     }
     
@@ -266,7 +268,7 @@ struct DashboardView: View {
                     Text(formatCurrency(viewModel.goalAllocations))
                         .font(.subheadline)
                         .fontWeight(.semibold)
-                        .foregroundColor(AppColorTheme.accent)
+                        .foregroundColor(AppColorTheme.savingsIndicator)
                 }
                 
                 NavigationLink(destination: GoalsView()) {
@@ -277,12 +279,12 @@ struct DashboardView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(AppColorTheme.accent)
+                    .foregroundColor(AppColorTheme.savingsIndicator)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
                         Capsule()
-                            .fill(AppColorTheme.accent.opacity(0.15))
+                            .fill(AppColorTheme.savingsIndicator.opacity(0.15))
                     )
                 }
                 .buttonStyle(.plain)
@@ -318,7 +320,7 @@ struct DashboardView: View {
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
                             }
-                            .foregroundColor(AppColorTheme.accent)
+                            .foregroundColor(AppColorTheme.savingsIndicator)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                             .background(
@@ -507,43 +509,37 @@ struct DashboardView: View {
     }
 }
 
-/// Premium summary card with unified background and accent indicator.
-/// Amount uses AmountView: hero for Remaining Balance, secondary for Income/Expenses. No shared scale.
-struct SummaryCard: View {
+/// Dashboard 2×2 KPI tile: accent bar, title, and `AmountView` (secondary scale).
+private struct DashboardKPICard: View {
     let title: String
     let amount: Double
     let currencyCode: String
-    let amountStyle: AmountStyle
-    let indicatorColor: Color
-    let icon: String
-
-    init(title: String, amount: Double, currencyCode: String, amountStyle: AmountStyle, indicatorColor: Color, icon: String) {
-        self.title = title
-        self.amount = amount
-        self.currencyCode = currencyCode
-        self.amountStyle = amountStyle
-        self.indicatorColor = indicatorColor
-        self.icon = icon
-    }
+    let accentColor: Color
+    let entranceIndex: Int
+    let entranceReady: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             RoundedRectangle(cornerRadius: 2)
-                .fill(indicatorColor)
+                .fill(accentColor)
                 .frame(width: 4)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(title)
-                    .font(AppTypography.captionMedium)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(AppColorTheme.textSecondary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                AmountView(amount: amount, style: amountStyle, currencyCode: currencyCode)
+                AmountView(amount: amount, style: .secondary, currencyCode: currencyCode)
+                    .contentTransition(.numericText())
             }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, AppSpacing.s)
+        .padding(.vertical, AppSpacing.xs)
         .padding(.horizontal, AppSpacing.s)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(AppColorTheme.cardBackground)
@@ -552,6 +548,10 @@ struct SummaryCard: View {
                         .stroke(AppColorTheme.cardBorder, lineWidth: 1)
                 )
         )
+        .opacity(entranceReady ? 1 : 0)
+        .offset(y: entranceReady ? 0 : 12)
+        .animation(AppAnimation.quickUI.delay(Double(entranceIndex) * 0.05), value: entranceReady)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -622,13 +622,7 @@ struct CategoryChartView: View {
     }
     
     private func categoryColor(_ categoryInfo: CategoryDisplayInfo) -> Color {
-        if categoryInfo.isCustom {
-            return AppColorTheme.chartBarFill
-        }
-        if let category = ExpenseCategory(rawValue: categoryInfo.name) {
-            return AppColorTheme.color(for: category)
-        }
-        return AppColorTheme.chartBarFill
+        categoryInfo.chartTintColor
     }
     
     private func formatCurrency(_ amount: Double) -> String {
@@ -646,10 +640,10 @@ struct GoalSummaryCard: View {
                 // Goal icon with subtle accent
                 ZStack {
                     Circle()
-                        .fill(AppColorTheme.accent.opacity(0.12))
+                        .fill(AppColorTheme.savingsIndicator.opacity(0.12))
                         .frame(width: 40, height: 40)
                     Image(systemName: "target")
-                        .foregroundColor(AppColorTheme.accent)
+                        .foregroundColor(AppColorTheme.savingsIndicator)
                         .font(.system(size: 18))
                 }
                 
@@ -667,7 +661,7 @@ struct GoalSummaryCard: View {
                         Text("\(Int(goal.progress * 100))%")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(AppColorTheme.accent)
+                            .foregroundColor(AppColorTheme.savingsIndicator)
                     }
                     
                     // Thinner progress bar (4px)
@@ -678,7 +672,7 @@ struct GoalSummaryCard: View {
                                 .frame(height: 4)
                             
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(AppColorTheme.accent)
+                                .fill(AppColorTheme.savingsIndicator)
                                 .frame(width: geometry.size.width * CGFloat(goal.progress), height: 4)
                         }
                     }
@@ -724,9 +718,9 @@ struct ActivityRowView: View {
     /// Icon color based on activity type
     private var iconColor: Color {
         if activity.isMergedBalance {
-            return AppColorTheme.accent
+            return AppColorTheme.savingsIndicator
         } else if activity.isGoalContribution {
-            return AppColorTheme.accent
+            return AppColorTheme.savingsIndicator
         } else if activity.isIncome {
             return AppColorTheme.incomeIndicator
         } else {
@@ -737,7 +731,7 @@ struct ActivityRowView: View {
     /// Amount text color (muted for calm appearance)
     private var amountColor: Color {
         if activity.isMergedBalance || activity.isGoalContribution {
-            return AppColorTheme.accent
+            return AppColorTheme.savingsIndicator
         } else if activity.isIncome {
             return AppColorTheme.positive.opacity(0.9)
         } else {
@@ -771,7 +765,11 @@ struct ActivityRowView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(iconColor)
                     } else if activity.isIncome {
-                        if case .income(let income) = activity.type, income.source?.isSalary == true {
+                        if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
+                            Image(systemName: "tray.and.arrow.up.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(iconColor)
+                        } else if case .income(let income) = activity.type, income.source?.isSalary == true {
                             Image(systemName: "briefcase.fill")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(iconColor)
@@ -805,7 +803,12 @@ struct ActivityRowView: View {
                                 .foregroundColor(AppColorTheme.textPrimary)
                         }
                     } else if activity.isIncome {
-                        if case .income(let income) = activity.type, income.source?.isSalary == true {
+                        if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
+                            Text(L10n("deleted_category.income_title"))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(AppColorTheme.textPrimary)
+                        } else if case .income(let income) = activity.type, income.source?.isSalary == true {
                             Text(L10n("activity.salary"))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
@@ -897,6 +900,9 @@ struct ActivityRowView: View {
             if !activity.isMergedBalance {
                 let typeLabel: String = {
                     if activity.isGoalContribution { return L10n("activity.goal_contribution") }
+                    if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
+                        return L10n("deleted_category.income_title")
+                    }
                     if case .income(let income) = activity.type, income.source?.isSalary == true {
                         return L10n("activity.salary")
                     }

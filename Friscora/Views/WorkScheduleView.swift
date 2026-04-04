@@ -2,16 +2,19 @@
 //  WorkScheduleView.swift
 //  Friscora
 //
-//  Main view for work schedule tracking with multiple jobs
+//  Schedule tab: work shifts and personal events on one calendar; pay tools stay work-only.
 //
 
 import SwiftUI
 
-struct WorkScheduleView: View {
+struct ScheduleView: View {
     @StateObject private var viewModel = WorkScheduleViewModel()
     @StateObject private var workScheduleService = WorkScheduleService.shared
     @StateObject private var userProfileService = UserProfileService.shared
-    @State private var selectedDate: IdentifiableDate? = nil
+    /// Start-of-day when the Shift Composer is open; `nil` when closed. Same-day tap toggles close.
+    @State private var composerDay: Date? = nil
+    @State private var composerStage: ScheduleComposerStage = .collapsed
+    @AccessibilityFocusState private var composerAccessibilityFocused: Bool
     @State private var showingSettings = false
     @State private var showingNewJob = false
     @State private var showingClearConfirmation = false
@@ -42,27 +45,42 @@ struct WorkScheduleView: View {
                 AppColorTheme.background
                     .ignoresSafeArea()
                 
-                if !workScheduleService.hasJobs {
-                    emptyStateView
-                } else {
-                    ScrollView {
-                        VStack(spacing: AppSpacing.xl) {
-                            horizontalCalendarSection
+                ScrollView {
+                    VStack(spacing: AppSpacing.xl) {
+                        if !workScheduleService.hasJobs {
+                            scheduleOnboardingHint
                                 .padding(.horizontal, AppSpacing.l)
-                                .padding(.top, AppSpacing.l)
+                                .padding(.top, AppSpacing.s)
+                        }
+                        
+                        horizontalCalendarSection
+                            .padding(.horizontal, AppSpacing.l)
+                            .padding(.top, AppSpacing.l)
 
+                        if workScheduleService.hasJobs {
                             summarySection
                                 .padding(.horizontal, AppSpacing.l)
 
                             salaryProjectionDisclosure
                                 .padding(.horizontal, AppSpacing.l)
+                        } else {
+                            scheduleNoJobsForecastNote
+                                .padding(.horizontal, AppSpacing.l)
                         }
-                        .padding(.vertical, AppSpacing.m)
                     }
-                    .scrollIndicators(.hidden, axes: .vertical)
+                    .padding(.vertical, AppSpacing.m)
+                }
+                .scrollIndicators(.hidden, axes: .vertical)
+                .allowsHitTesting(composerDay == nil)
+                
+                if let day = composerDay,
+                   viewModel.calendar.isDate(day, equalTo: viewModel.selectedMonth, toGranularity: .month) {
+                    scheduleComposerDimmerAndCard(for: day)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
-//            .navigationTitle(L10n("work.title"))
+            .animation(AppAnimation.inspectorReveal, value: composerDay)
+            .navigationTitle(L10n("tab.schedule"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if hasWorkDaysInMonth {
@@ -87,6 +105,7 @@ struct WorkScheduleView: View {
                     } label: {
                         Image(systemName: "briefcase.fill")
                             .foregroundColor(AppColorTheme.accent)
+                            .accessibilityLabel(L10n("schedule.toolbar.jobs_a11y"))
                     }
                 }
             }
@@ -97,11 +116,6 @@ struct WorkScheduleView: View {
                 }
             } message: {
                 Text(String(format: L10n("work.delete_month_confirm"), viewModel.monthString(for: viewModel.selectedMonth)))
-            }
-            .sheet(item: $selectedDate) { identifiableDate in
-                WorkDayInputView(date: identifiableDate.date, selectedDate: $selectedDate)
-                    .presentationCornerRadius(24)
-                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
             .sheet(isPresented: $showingSettings) {
                 WorkSettingsView(isPresented: $showingSettings)
@@ -120,7 +134,56 @@ struct WorkScheduleView: View {
                     selectedMonthIndex = max(0, calendarMonths.count - 1)
                 }
             }
+            .onChange(of: composerDay) { _, newValue in
+                if newValue != nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                        composerAccessibilityFocused = true
+                    }
+                } else {
+                    composerAccessibilityFocused = false
+                }
+            }
         }
+    }
+    
+    /// Full-screen dimmer + bottom composer. Dimmer sits above the scroll view (month arrows are inactive until the composer is dismissed).
+    @ViewBuilder
+    private func scheduleComposerDimmerAndCard(for day: Date) -> some View {
+        ZStack(alignment: .bottom) {
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    Rectangle()
+                        .fill(AppColorTheme.scheduleComposerBackdropDim)
+                        .ignoresSafeArea()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    HapticHelper.lightImpact()
+                    withAnimation(AppAnimation.inspectorReveal) {
+                        composerDay = nil
+                        composerStage = .collapsed
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L10n("schedule.composer.dismiss_a11y"))
+                .accessibilityHint(L10n("schedule.composer.dismiss_hint_a11y"))
+                .accessibilityAddTraits(.isButton)
+            
+            ScheduleComposerOverlay(
+                date: day,
+                stage: $composerStage,
+                onDismissComposer: {
+                    withAnimation(AppAnimation.inspectorReveal) {
+                        composerDay = nil
+                        composerStage = .collapsed
+                    }
+                },
+                accessibilityComposerFocused: $composerAccessibilityFocused
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     /// Clears all work days for the currently selected month
@@ -136,16 +199,61 @@ struct WorkScheduleView: View {
         impactFeedback(style: .medium)
     }
     
-    private var emptyStateView: some View {
-        EmptyStateView(
-            icon: "briefcase.fill",
-            message: L10n("work.no_jobs_added"),
-            detail: L10n("work.add_first_job"),
-            actionTitle: L10n("work.add_job"),
-            action: { showingNewJob = true },
-            iconColor: AppColorTheme.textTertiary
+    private var scheduleOnboardingHint: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            Text(L10n("schedule.onboarding.title"))
+                .font(AppTypography.cardTitle)
+                .foregroundColor(AppColorTheme.textPrimary)
+            Text(L10n("schedule.onboarding.detail"))
+                .font(.subheadline)
+                .foregroundColor(AppColorTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                showingNewJob = true
+            } label: {
+                Text(L10n("work.add_job"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(AppColorTheme.accent.opacity(0.2))
+                    .cornerRadius(12)
+            }
+        }
+        .padding(AppSpacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [AppColorTheme.cardBackground, AppColorTheme.cardBackground.opacity(0.85)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 2)
+    }
+    
+    private var scheduleNoJobsForecastNote: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            Text(L10n("schedule.forecast_scope_title"))
+                .font(AppTypography.cardTitle)
+                .foregroundColor(AppColorTheme.textPrimary)
+            Text(L10n("settings.schedule_forecast_footer"))
+                .font(.subheadline)
+                .foregroundColor(AppColorTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(AppSpacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [AppColorTheme.cardBackground, AppColorTheme.cardBackground.opacity(0.85)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 2)
     }
     
     private var horizontalCalendarSection: some View {
@@ -199,6 +307,19 @@ struct WorkScheduleView: View {
             }
             .padding(.horizontal, 8)
             
+            if let ctxDay = composerDay,
+               viewModel.calendar.isDate(ctxDay, equalTo: viewModel.selectedMonth, toGranularity: .month),
+               let line = selectedDayContextSummaryLine(for: ctxDay) {
+                Text(line)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(line)
+            }
+            
             TabView(selection: $selectedMonthIndex) {
                 ForEach(Array(calendarMonths.enumerated()), id: \.offset) { index, month in
                     calendarSectionForMonth(month)
@@ -207,11 +328,17 @@ struct WorkScheduleView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut(duration: 0.25), value: selectedMonthIndex)
-            .frame(height: 372)
+            .frame(height: 400)
             .onChange(of: selectedMonthIndex) { _, newIndex in
-                if newIndex >= 0, newIndex < calendarMonths.count {
-                    viewModel.selectedMonth = calendarMonths[newIndex]
+                guard newIndex >= 0, newIndex < calendarMonths.count else { return }
+                let newMonth = calendarMonths[newIndex]
+                if let d = composerDay, !viewModel.calendar.isDate(d, equalTo: newMonth, toGranularity: .month) {
+                    withAnimation(AppAnimation.inspectorReveal) {
+                        composerDay = nil
+                        composerStage = .collapsed
+                    }
                 }
+                viewModel.selectedMonth = newMonth
             }
         }
         .padding()
@@ -224,6 +351,35 @@ struct WorkScheduleView: View {
         )
         .cornerRadius(20)
         .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 4)
+    }
+    
+    /// Compact context under the month header when a day is selected (mirrors composer stats; uses profile currency).
+    private func selectedDayContextSummaryLine(for day: Date) -> String? {
+        let work = workScheduleService.workDays(for: day)
+        let events = workScheduleService.personalEvents(onSameDayAs: day)
+        let count = work.count + events.count
+        guard count > 0 else { return nil }
+        let hours = work.reduce(0) { $0 + $1.hoursWorked }
+        let currency = userProfileService.profile.currency
+        var hourlyTotal: Double = 0
+        var hasHourlyEstimate = false
+        for wd in work {
+            guard let job = workScheduleService.job(withId: wd.jobId) else { continue }
+            if job.paymentType == .hourly, let r = job.hourlyRate, r > 0 {
+                hourlyTotal += wd.hoursWorked * r
+                hasHourlyEstimate = true
+            }
+        }
+        let entriesPart = String(format: L10n("schedule.composer.entry_count"), count)
+        var parts: [String] = [entriesPart]
+        if hours > 0 {
+            parts.append(formatHours(hours))
+        }
+        if hasHourlyEstimate {
+            let money = CurrencyFormatter.formatWithSymbol(hourlyTotal, currencyCode: currency)
+            parts.append(String(format: L10n("schedule.composer.approx_earnings_fragment"), money))
+        }
+        return parts.joined(separator: L10n("schedule.composer.stats_sep"))
     }
     
     private func calendarSectionForMonth(_ month: Date) -> some View {
@@ -258,57 +414,159 @@ struct WorkScheduleView: View {
         let isCurrentMonth = viewModel.calendar.isDate(date, equalTo: month, toGranularity: .month)
         let isToday = viewModel.calendar.isDateInToday(date)
         let workDays = workScheduleService.workDays(for: date)
-        let hasHours = !workDays.isEmpty
-        
-        // Get job colors for this date (unique colors only)
-        let jobColors = workDays.compactMap { workDay -> Color? in
-            guard let job = workScheduleService.job(withId: workDay.jobId) else { return nil }
-            return job.color
-        }
+        let personal = workScheduleService.personalEvents(onSameDayAs: date)
+        let hasItems = !workDays.isEmpty || !personal.isEmpty
+        let dayNum = viewModel.calendar.component(.day, from: date)
+        let isComposerFocusedDay = isCurrentMonth
+            && (composerDay.map { viewModel.calendar.isDate($0, inSameDayAs: date) } ?? false)
+        let a11y = scheduleDayAccessibility(
+            date: date,
+            isCurrentMonth: isCurrentMonth,
+            workDays: workDays,
+            personal: personal,
+            composerOpenForThisDay: isComposerFocusedDay
+        )
         
         return Button {
-            if isCurrentMonth {
-                if workScheduleService.hasJobs {
-                    selectedDate = IdentifiableDate(date: date)
+            guard isCurrentMonth else { return }
+            HapticHelper.selection()
+            withAnimation(AppAnimation.inspectorReveal) {
+                if let ins = composerDay, viewModel.calendar.isDate(ins, inSameDayAs: date) {
+                    composerDay = nil
+                    composerStage = .collapsed
                 } else {
-                    // First time - open settings
-                    showingSettings = true
+                    composerDay = viewModel.calendar.startOfDay(for: date)
+                    composerStage = .collapsed
                 }
             }
         } label: {
-            ZStack {
-                // Work day indicator - filled circle(s)
-                if hasHours && isCurrentMonth {
-                    if jobColors.count == 1 {
-                        // Single job - full filled circle
-                        Circle()
-                            .fill(jobColors[0].opacity(0.85))
-                            .frame(width: 36, height: 36)
-                    } else {
-                        // Multiple jobs - segmented circle
-                        MultiColorCircle(colors: jobColors)
-                            .frame(width: 36, height: 36)
-                    }
-                }
-                
-                // Today highlight ring (on top of work indicator)
-                if isToday && isCurrentMonth {
-                    Circle()
-                        .stroke(AppColorTheme.accent, lineWidth: 2)
-                        .frame(width: 38, height: 38)
-                }
-                
-                Text("\(viewModel.calendar.component(.day, from: date))")
-                    .font(.system(size: 15, weight: isToday || hasHours ? .bold : .semibold))
+            VStack(spacing: 4) {
+                Text("\(dayNum)")
+                    .font(.system(size: 15, weight: isToday ? .bold : .semibold))
                     .foregroundColor(
                         isCurrentMonth
-                            ? (hasHours ? .white : (isToday ? AppColorTheme.accent : AppColorTheme.textPrimary))
+                            ? (isToday ? AppColorTheme.accent : AppColorTheme.textPrimary)
                             : AppColorTheme.textTertiary
                     )
+                
+                if isCurrentMonth && hasItems {
+                    scheduleDayMicroIndicatorRow(workDays: workDays, personal: personal)
+                } else {
+                    Color.clear.frame(height: 12)
+                }
             }
-            .frame(width: 44, height: 50)
+            .frame(width: 44, height: 56)
+            .scaleEffect(isComposerFocusedDay ? 1.04 : 1.0)
+            .animation(AppAnimation.snappy, value: isComposerFocusedDay)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isComposerFocusedDay ? AppColorTheme.accent.opacity(0.18) : Color.clear)
+            )
+            .overlay {
+                if isToday && isCurrentMonth {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(AppColorTheme.accent, lineWidth: 2)
+                } else if isComposerFocusedDay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(AppColorTheme.accent.opacity(0.55), lineWidth: 1.5)
+                }
+            }
         }
         .disabled(!isCurrentMonth)
+        .accessibilityLabel(a11y.label)
+        .accessibilityHint(a11y.hint)
+    }
+    
+    /// Work: thin multi-segment bar (stroke + translucent fill). Events: sapphire glyph on elevated pill (distinct from job colors).
+    private func scheduleDayMicroIndicatorRow(workDays: [WorkDay], personal: [PersonalScheduleEvent]) -> some View {
+        let hasWork = !workDays.isEmpty
+        let hasPersonal = !personal.isEmpty
+        return HStack(alignment: .center, spacing: 4) {
+            if hasWork {
+                workSegmentMicroBar(for: workDays)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if hasPersonal {
+                Spacer(minLength: 0)
+            }
+            if hasPersonal {
+                personalEventMicroGlyph
+            }
+        }
+        .frame(height: 12)
+        .accessibilityElement(children: .ignore)
+    }
+    
+    private func workSegmentMicroBar(for workDays: [WorkDay]) -> some View {
+        let maxSeg = 3
+        let count = workDays.count
+        let segCount = min(maxSeg, max(count, 0))
+        let overflow = max(0, count - maxSeg)
+        return HStack(spacing: 3) {
+            HStack(spacing: 1) {
+                ForEach(0..<segCount, id: \.self) { i in
+                    let wd = workDays[i]
+                    let color = workScheduleService.job(withId: wd.jobId)?.color ?? AppColorTheme.accent
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(color.opacity(0.4))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                .strokeBorder(color.opacity(0.92), lineWidth: 0.75)
+                        )
+                }
+            }
+            .frame(height: 4)
+            if overflow > 0 {
+                Text("+\(overflow)")
+                    .font(.system(size: 6, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .fixedSize()
+            }
+        }
+    }
+    
+    private var personalEventMicroGlyph: some View {
+        ZStack {
+            Circle()
+                .fill(AppColorTheme.elevatedBackground)
+                .frame(width: 12, height: 12)
+                .overlay(
+                    Circle()
+                        .strokeBorder(AppColorTheme.textTertiary.opacity(0.45), lineWidth: 0.5)
+                )
+            Image(systemName: "calendar")
+                .font(.system(size: 7, weight: .semibold))
+                .foregroundColor(AppColorTheme.sapphire)
+        }
+        .accessibilityHidden(true)
+    }
+    
+    private func scheduleDayAccessibility(
+        date: Date,
+        isCurrentMonth: Bool,
+        workDays: [WorkDay],
+        personal: [PersonalScheduleEvent],
+        composerOpenForThisDay: Bool
+    ) -> (label: String, hint: String) {
+        guard isCurrentMonth else {
+            return ("", "")
+        }
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateStyle = .full
+        dayFormatter.locale = LocalizationManager.shared.currentLocale
+        let dayStr = dayFormatter.string(from: date)
+        var parts: [String] = [dayStr]
+        if !workDays.isEmpty {
+            parts.append(String(format: L10n("schedule.a11y.work_count"), workDays.count))
+        }
+        if !personal.isEmpty {
+            parts.append(String(format: L10n("schedule.a11y.event_count"), personal.count))
+        }
+        if composerOpenForThisDay {
+            parts.append(L10n("schedule.a11y.composer_open"))
+        }
+        let label = parts.joined(separator: ", ")
+        let hint = L10n("schedule.a11y.day_cell_hint")
+        return (label, hint)
     }
     
     private func generateCalendarDays(for month: Date) -> [Date] {
@@ -360,6 +618,12 @@ struct WorkScheduleView: View {
                     icon: "dollarsign.circle.fill",
                     color: AppColorTheme.accent
                 )
+                
+                Text(L10n("schedule.summary_forecast_footer"))
+                    .font(.caption)
+                    .foregroundColor(AppColorTheme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
                 
                 // Hours per job (when multiple jobs)
                 if workScheduleService.jobs.count >= 2 {
@@ -441,7 +705,13 @@ struct WorkScheduleView: View {
     /// Salary projection folded by default (Option A: collapsible) to avoid three large blocks above the fold.
     private var salaryProjectionDisclosure: some View {
         DisclosureGroup(isExpanded: $salaryProjectionExpanded) {
-            salaryProjectionCardBody
+            VStack(alignment: .leading, spacing: AppSpacing.s) {
+                Text(String(format: L10n("schedule.projection_based_on_shifts"), viewModel.scheduledShiftCountForSelectedMonth))
+                    .font(.caption)
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                salaryProjectionCardBody
+            }
         } label: {
             Text(L10n("work.salary_projection"))
                 .font(AppTypography.cardTitle)
@@ -562,39 +832,3 @@ struct IdentifiableDate: Identifiable {
     let date: Date
 }
 
-// MARK: - Multi-Color Circle View
-
-/// A circle divided into segments for multiple job colors
-struct MultiColorCircle: View {
-    let colors: [Color]
-    
-    var body: some View {
-        GeometryReader { geometry in
-            let size = min(geometry.size.width, geometry.size.height)
-            let center = CGPoint(x: size / 2, y: size / 2)
-            let radius = size / 2
-            let anglePerSegment = 360.0 / Double(colors.count)
-            
-            ZStack {
-                ForEach(0..<colors.count, id: \.self) { index in
-                    let startAngle = Angle(degrees: Double(index) * anglePerSegment - 90)
-                    let endAngle = Angle(degrees: Double(index + 1) * anglePerSegment - 90)
-                    
-                    Path { path in
-                        path.move(to: center)
-                        path.addArc(
-                            center: center,
-                            radius: radius,
-                            startAngle: startAngle,
-                            endAngle: endAngle,
-                            clockwise: false
-                        )
-                        path.closeSubpath()
-                    }
-                    .fill(colors[index].opacity(0.85))
-                }
-            }
-        }
-        .clipShape(Circle())
-    }
-}

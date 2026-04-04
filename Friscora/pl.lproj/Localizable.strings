@@ -5,6 +5,8 @@
 "settings.section.account" = "Konto";
 "settings.section.security" = "Bezpieczeństwo";
 "settings.section.notifications" = "Powiadomienia";
+"settings.section.schedule" = "Harmonogram";
+"settings.schedule_forecast_footer" = "Prognoza dochodu i synchronizacja wynagrodzenia uwzględniają tylko zaplanowane zmiany. Osobiste wydarzenia w harmonogramie nie są wliczane (chyba że dodamy taką opcję później).";
 "settings.section.about" = "O aplikacji";
 "settings.language" = "Język";
 "settings.data" = "Dane";
@@ -86,7 +88,8 @@
 "language.applying" = "Stosowanie języka…";
 
 "tab.dashboard" = "Panel";
-"tab.work" = "Praca";
+"tab.schedule" = "Harmonogram";
+"tab.work" = "Harmonogram";
 "tab.add" = "Dodaj";
 "tab.goals" = "Cele";
 "tab.analytics" = "Analiza";
@@ -120,9 +123,28 @@
 "category.other" = "Inne";
 "category.name" = "Nazwa kategorii";
 "category.icon" = "Ikona";
+"category.chart_color" = "Kolor na wykresie";
+"category.chart_color.hint" = "W podziale wydatków i analityce.";
+"category.chart_color.a11y_swatch" = "Kolor wykresu %@";
+"category.chart_color.a11y_locked" = "Kolor %@ jest już używany — wybierz inny.";
+"category.name_taken" = "Kategoria o tej nazwie już istnieje.";
+"category.icon_show_more" = "Więcej";
+"category.icon_show_less" = "Mniej";
+"category.icon.tap_to_change" = "Wybierz ikonę";
+"category.icon.collapse_hint" = "Stuknij, aby rozwinąć i wybrać spośród wszystkich ikon.";
+"category.icon_collapse" = "Zwiń";
+"category.icon.a11y_option" = "Ikona %@";
+"category.icon.a11y_locked" = "Ikona %@ jest już używana — wybierz inną.";
+
+"deleted_category.expense_label" = "Usunięta kategoria";
+"deleted_category.income_title" = "Usunięta kategoria";
+
+"add_transaction.quick_categories_hint" = "Pierwsze sześć z Edycji kategorii — zmień kolejność tam, by zmienić tę siatkę.";
 
 "dashboard.income" = "Przychody";
 "dashboard.expenses" = "Wydatki";
+"dashboard.kpi.savings" = "Oszczędności";
+"dashboard.kpi.balance" = "Saldo";
 "dashboard.remaining_balance" = "Pozostałe saldo";
 "dashboard.spending_by_category" = "Wydatki według kategorii";
 "dashboard.empty_categories" = "Brak danych. Zacznij świadomie zarządzać finansami.";
@@ -143,6 +165,7 @@
 "dashboard.edit_income" = "Edytuj przychód";
 "dashboard.income_label" = "Przychód";
 "dashboard.to_goal" = "Do celu: %@";
+"dashboard.schedule_income_note" = "Wpisy wynagrodzenia z zakładki Harmonogram pochodzą tylko z zaplanowanych zmian; osobiste wydarzenia ich nie zmieniają.";
 
 "analytics.title" = "Analiza";
 "analytics.period" = "Okres";
@@ -153,6 +176,9 @@
 "analytics.income_breakdown" = "Struktura budżetu";
 "analytics.no_data" = "Brak danych za ten okres";
 "analytics.vs_last_month" = "vs poprzedni miesiąc";
+"analytics.trend.empty_income" = "Jeszcze bez przychodu";
+"analytics.trend.empty_expenses" = "Jeszcze bez wydatków";
+"analytics.trend.empty_savings" = "Jeszcze bez oszczędności";
 "analytics.vs_prev" = "wzgl. poprz. m.";
 "analytics.insights_title" = "Wnioski";
 "analytics.insight.top_category" = "%@ stanowi %d%% Twoich wydatków.";
@@ -168,6 +194,20 @@
 "analytics.pie.expenses" = "Wydatki";
 "analytics.pie.savings" = "Oszczędności";
 "analytics.pie.remaining" = "Pozostało";
+"analytics.income_split.title" = "Podział dochodu w tym miesiącu";
+"analytics.income_split.of_income" = "w skali dochodu";
+"analytics.income_split.used_of_income" = "%@ z %@";
+"analytics.income_split.summary_spent_of_income" = "Wydano %@ z %@";
+"analytics.income_split.summary_allocated_only" = "%@ na wydatki i oszczędności";
+"analytics.income_split.bar_full_equals_income" = "Pełny pasek odpowiada dochodowi w tym miesiącu.";
+"analytics.income_split.overflow_hint" = "Wydatki i oszczędności przekraczają dochód; pasek jest skalowany do sumy wydatków.";
+"analytics.income_split.no_income_hint" = "Pasek pokazuje wydatki i oszczędności względem siebie. Dodaj dochód, aby uwzględnić niewykorzystane środki.";
+"analytics.income_split.a11y.hint" = "Pokazuje lub ukrywa pasek podziału dochodu i legendę.";
+"analytics.income_split.a11y.expanded" = "Rozwinięte";
+"analytics.income_split.a11y.collapsed" = "Zwinięte";
+"analytics.income_split.a11y.bar_label" = "%@, %@";
+"analytics.income_split.a11y.segmented_summary" = "Podsumowanie: wydatki %@, oszczędności %@, pozostało %@, dochód %@.";
+"analytics.income_split.a11y.segmented_summary_no_remaining" = "Wydatki %@, oszczędności %@; skala według wydatków i oszczędności.";
 
 "add_transaction.title" = "Dodaj transakcję";
 "add_transaction.expense" = "Wydatek";
@@ -193,13 +233,74 @@
 "work.estimated_salary" = "Szacowane wynagrodzenie";
 "work.salary_projection" = "Prognoza wynagrodzenia";
 "work.no_payments_scheduled" = "Brak zaplanowanych wypłat";
-"work.delete_month_confirm" = "Czy na pewno chcesz usunąć wszystkie godziny pracy za %@? Tej operacji nie można cofnąć.";
+"work.delete_month_confirm" = "Usunąć wszystkie zaplanowane zmiany za %@? Osobiste wydarzenia zostaną. Tej operacji nie można cofnąć.";
 "work.hours_short" = "h";
-"work.clear_all" = "Wyczyść wszystkie godziny";
+"work.clear_all" = "Wyczyść zmiany";
 "work.clear_all_button" = "Wyczyść wszystko";
+
+"schedule.onboarding.title" = "Śledź wynagrodzenie ze zmian";
+"schedule.onboarding.detail" = "Dotknij daty, aby otworzyć kompozytor zmian—dodaj zmianę lub wydarzenie osobiste bez opuszczania kalendarza. Dodaj pracę, gdy chcesz godziny, szacunek i prognozę.";
+"schedule.forecast_scope_title" = "Jak działa prognoza";
+"schedule.segment.work" = "Zmiana";
+"schedule.segment.event" = "Wydarzenie";
+"schedule.add_kind_picker_a11y" = "Dodaj: zmiana lub wydarzenie osobiste";
+"schedule.day.items_header" = "Ten dzień";
+"schedule.day.empty" = "Brak wpisów — wybierz zakładkę poniżej.";
+"schedule.work_form_header" = "Zmiana";
+"schedule.work_form_no_jobs" = "Dodaj pracę (przycisk teczki), aby zapisywać płatne zmiany.";
+"schedule.event.section_title" = "Wydarzenie osobiste";
+"schedule.event.title_label" = "Tytuł";
+"schedule.event.title_placeholder" = "Spotkanie, blok czasu…";
+"schedule.event.title_rules_hint" = "Minimum 3 znaki; nie może składać się tylko z cyfr.";
+"schedule.event.start_label" = "Początek";
+"schedule.event.end_label" = "Koniec";
+"schedule.event.show_busy" = "Pokaż jako Zajęty (ukryj tytuł w kalendarzu)";
+"schedule.event.forecast_footer" = "Nie zmieni prognozy dochodu ani synchronizacji wynagrodzenia.";
+"schedule.event.untitled" = "Wydarzenie";
+"schedule.busy_placeholder" = "Zajęty";
+"schedule.toolbar.jobs_a11y" = "Prace i ustawienia wynagrodzenia";
+"schedule.projection_based_on_shifts" = "Na podstawie %lld zaplanowanych zmian w tym miesiącu.";
+"schedule.overlap.title" = "Nakładanie się czasu";
+"schedule.overlap.message" = "Ten czas pokrywa się z innym wpisem tego dnia.";
+"schedule.overlap.save_anyway" = "Zapisz mimo to";
+"schedule.a11y.work_shift" = "Zmiana";
+"schedule.a11y.personal_event" = "Wydarzenie osobiste";
+"schedule.a11y.work_count" = "%lld zmian";
+"schedule.a11y.event_count" = "%lld wydarzeń osobistych";
+"schedule.a11y.open_day_hint" = "Otwiera szczegóły dnia.";
+"schedule.a11y.add_day_hint" = "Dodaj zmianę lub wydarzenie osobiste.";
+"schedule.a11y.day_cell_hint" = "Otwiera lub zamyka kompozytor dnia. Ponownie dotknij tej samej daty, aby zamknąć.";
+"schedule.a11y.inspector_open" = "Szczegóły otwarte";
+"schedule.a11y.composer_open" = "Kompozytor otwarty";
+"schedule.composer.add_to_day_subtitle" = "Dodaj do tego dnia";
+"schedule.composer.action_work" = "+ Zmiana";
+"schedule.composer.action_event" = "+ Wydarzenie osobiste";
+"schedule.composer.dismiss_a11y" = "Zamknij kompozytor dnia";
+"schedule.composer.dismiss_hint_a11y" = "Zamyka kompozytor i wraca do kalendarza.";
+"schedule.composer.back_collapsed_a11y" = "Wróć do szybkich akcji";
+"schedule.composer.earnings_preview_title" = "Szacowane zarobki";
+"schedule.composer.earnings_hours_money" = "%1$.1f h · %2$@";
+"schedule.composer.rate_missing" = "Dodaj stawkę godzinową w ustawieniach pracy, aby zobaczyć szacunek dla tej zmiany.";
+"schedule.composer.fixed_monthly_hint" = "Stała pensja miesięczna — długość zmiany nie zmienia wypłaty za pojedynczą zmianę.";
+"schedule.composer.stats_sep" = " · ";
+"schedule.composer.entry_count" = "%lld wpisów";
+"schedule.composer.adjust_times" = "Dostosuj czas";
+"schedule.composer.event_add" = "Dodaj wydarzenie";
+"schedule.composer.add_shift" = "Dodaj zmianę";
+"schedule.composer.approx_earnings_fragment" = "≈ %@";
+"schedule.inspector.close_a11y" = "Zamknij szczegóły dnia";
+"schedule.inspector.close_hint_a11y" = "Zwija panel nad kalendarzem.";
+"schedule.inspector.overlay_a11y" = "Szczegóły dnia wyświetlane nad kalendarzem.";
+"schedule.inspector.add_more_a11y" = "Dodaj kolejną zmianę lub wydarzenie osobiste";
+"schedule.inspector.moved_here_a11y" = "Szczegóły dnia otwarte pod kalendarzem.";
+"schedule.item.work_fallback" = "Praca";
+"schedule.summary_forecast_footer" = "Prognoza uwzględnia tylko zaplanowane zmiany, nie wydarzenia osobiste.";
 
 "work_hours.title" = "Godziny pracy";
 "work_hours.select_job" = "Wybierz pracę";
+"work_hours.change_job" = "Zmień pracę";
+"work_hours.change_shift" = "Zmień zmianę";
+"work_hours.add_shift_a11y" = "Dodaj zmianę";
 "work_hours.hours_worked" = "Przepracowane godziny";
 "work_hours.hrs" = "godz.";
 "work_hours.save" = "Zapisz";
@@ -309,13 +410,20 @@
 "history.apply_range" = "Zastosuj zakres";
 "history.select_date_range" = "Wybierz zakres dat";
 
-"edit_categories.title" = "Edytuj kategorie";
+"edit_categories.title" = "Kategorie";
 "edit_categories.builtin_not_editable" = "Wbudowanych kategorii nie można edytować";
 "edit_categories.builtin" = "Wbudowane kategorie";
 "edit_categories.no_custom" = "Brak kategorii niestandardowych";
 "edit_categories.custom" = "Kategorie niestandardowe";
-"edit_categories.tap_to_edit" = "Dotknij kategorię, aby edytować, lub przesuń, aby usunąć";
+"edit_categories.tap_to_edit" = "Dotknij kategorię, aby edytować, lub przeciągnij, aby zmienić kolejność";
+"edit_categories.quick_pick_explanation" = "Stuknij Edytuj na pasku, a następnie przeciągaj, by zmienić kolejność. Pierwsze sześć kategorii na liście pojawia się w Dodaj transakcję. Pozostałe nadal działają w całej aplikacji.";
+"edit_categories.all_categories_header" = "Wszystkie kategorie";
+"edit_categories.quick_pick_divider_badge" = "DODAJ TRANSAKCJĘ";
+"edit_categories.quick_pick_divider_hint" = "Powyższe sześć kategorii jest widocznych przy dodawaniu wydatku.";
 "edit_category.title" = "Edytuj kategorię";
+"edit_category.delete" = "Usuń kategorię";
+"edit_category.delete_confirm_title" = "Usunąć tę kategorię?";
+"edit_category.delete_confirm_message" = "Wszystkie wydatki w tej kategorii zostaną usunięte, a ich kwoty wrócą do salda. Każdy taki wpis pojawi się też w historii jako przychód zatytułowany Usunięta kategoria.";
 
 "chat.title" = "Doradca AI";
 "chat.thinking" = "Myślę...";

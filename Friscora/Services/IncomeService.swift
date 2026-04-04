@@ -120,7 +120,7 @@ class IncomeService: ObservableObject {
         let currentCurrency = UserProfileService.shared.profile.currency
         var total: Double = 0
         
-        for income in monthIncomes {
+        for income in monthIncomes where income.countsTowardBalance {
             // For synchronous version, only sum same currency
             if income.currency == currentCurrency {
                 total += income.amount

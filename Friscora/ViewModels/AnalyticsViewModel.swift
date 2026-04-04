@@ -313,6 +313,7 @@ class AnalyticsViewModel: ObservableObject {
     
     private func sumIncomes(in incomes: [Income], fromDay start: Int, toDay end: Int, currency: String) -> Double {
         incomes
+            .filter { $0.countsTowardBalance }
             .filter { let d = dayOfMonth(for: $0.date); return d >= start && d <= end }
             .reduce(0) { $0 + ($1.currency == currency ? $1.amount : $1.amount) }
     }
@@ -322,5 +323,57 @@ class AnalyticsViewModel: ObservableObject {
         guard dataCount > 0, chartWidth > 0 else { return nil }
         let index = Int((x / chartWidth) * CGFloat(dataCount))
         return min(max(index, 0), dataCount - 1)
+    }
+
+    // MARK: - Income split (Analytics hero)
+
+    /// Same “near zero” threshold as analytics trend placeholders (`AnalyticsView`).
+    private static let incomeSplitEpsilon: Double = 0.005
+
+    /// Bar scale: recorded monthly income when positive (bars = share of income); otherwise expenses + savings so relative sizes stay honest without implying a remainder vs income.
+    var incomeSplitScaleMax: Double {
+        if monthlyIncome > Self.incomeSplitEpsilon { return monthlyIncome }
+        let sum = totalExpenses + goalAllocations
+        return sum > Self.incomeSplitEpsilon ? sum : 1
+    }
+
+    /// Unallocated income (not shown as a bar when there is no recorded income).
+    var incomeSplitUnallocated: Double {
+        guard monthlyIncome > Self.incomeSplitEpsilon else { return 0 }
+        return max(0, monthlyIncome - totalExpenses - goalAllocations)
+    }
+
+    var incomeSplitShowsRemainingBar: Bool {
+        monthlyIncome > Self.incomeSplitEpsilon
+    }
+
+    /// Expenses plus goal allocations (money assigned from income perspective).
+    var incomeSplitAllocatedOutflows: Double {
+        totalExpenses + goalAllocations
+    }
+
+    /// Denominator for segmented bar segment widths.
+    ///
+    /// **Normal:** `monthlyIncome` when recorded — segments are fractions of income (expenses + savings + remaining = income when under budget).
+    ///
+    /// **Overflow:** When expenses + savings exceed income, remaining is 0 and `expenses + savings > income`. We use `max(income, expenses + savings + remaining)` so the bar fills 100% and proportions match actual outflows (Storage-style “used space” that can exceed the nominal quota). UI may show a short overflow hint.
+    ///
+    /// **No income:** Same as `incomeSplitScaleMax` (expenses + savings, or 1).
+    var incomeSplitSegmentDenominator: Double {
+        let eps = Self.incomeSplitEpsilon
+        let e = totalExpenses
+        let s = goalAllocations
+        let r = incomeSplitUnallocated
+        if monthlyIncome > eps {
+            return max(monthlyIncome, e + s + r)
+        }
+        return incomeSplitScaleMax
+    }
+
+    /// True when recorded income is positive but allocated outflows exceed it (bar denominator > income).
+    var incomeSplitShowsOverflowHint: Bool {
+        let eps = Self.incomeSplitEpsilon
+        guard monthlyIncome > eps else { return false }
+        return incomeSplitSegmentDenominator > monthlyIncome + eps
     }
 }

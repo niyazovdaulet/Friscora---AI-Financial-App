@@ -125,6 +125,9 @@ struct AppColorTheme {
     
     /// Income indicator (icon/strip color)
     static let incomeIndicator = emeraldGreen
+
+    /// Savings / goal allocations — darker emerald so KPI and charts don’t match income.
+    static let savingsIndicator = Color(hex: "047857")
     
     /// Expense indicator (icon/strip color)
     static let expenseIndicator = Color(hex: "FF6B6B")
@@ -159,6 +162,9 @@ struct AppColorTheme {
     
     /// Card border color
     static let cardBorder = layer2Border
+    
+    /// Subtle full-screen dim behind the schedule day composer. Prefer this over strong blur/material so the calendar stays contextual.
+    static let scheduleComposerBackdropDim = Color.black.opacity(0.14)
     
     // MARK: - Text Colors
     
@@ -264,8 +270,8 @@ struct AppColorTheme {
     /// Goals base background (Deep Navy variant)
     static let goalsBackground = Color(hex: "000D1A")
     
-    /// Goals primary accent (Emerald Green)
-    static let goalsAccent = emeraldGreen
+    /// Goals primary accent (aligned with savings, distinct from income emerald)
+    static let goalsAccent = savingsIndicator
     
     /// Goals secondary accent (Mint Whisper)
     static let goalsSecondaryAccent = mintWhisper
@@ -291,10 +297,10 @@ struct AppColorTheme {
         )
     }
     
-    /// Goals accent gradient (Emerald)
+    /// Goals accent gradient (deep emerald)
     static var goalsAccentGradient: LinearGradient {
         LinearGradient(
-            colors: [emeraldGreen, emeraldGreen.opacity(0.8)],
+            colors: [savingsIndicator, savingsIndicator.opacity(0.82)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -342,18 +348,26 @@ struct AppColorTheme {
     
     // MARK: - Category Colors (Spending by Category progress bars)
     
-    /// Distinct, modern color per built-in expense category. Keeps palette consistency (navy/sapphire/emerald/teal).
-    /// Custom categories use chartBarFill when passed via CategoryDisplayInfo elsewhere.
-    static func color(for category: ExpenseCategory) -> Color {
+    /// Hex for built-in category chart color (single source with `color(for:)`).
+    static func chartColorHex(for category: ExpenseCategory) -> String {
         switch category {
-        case .food:       return Color(hex: "E6A23C")  // Warm amber
-        case .rent:       return sapphire
-        case .transport:  return chartBarFill          // Teal
-        case .entertainment: return Color(hex: "8E44AD")  // Soft violet
-        case .subscriptions: return emeraldGreen
-        case .other:      return powderBlue
+        case .food: return "E6A23C"
+        case .rent: return "0F52BA"
+        case .transport: return "2E8B9A"
+        case .entertainment: return "8E44AD"
+        case .subscriptions: return "E879A9"
+        case .other: return "A6C5D7"
         }
     }
+
+    /// Distinct, modern color per built-in expense category. Keeps palette consistency (navy/sapphire/emerald/teal).
+    /// Custom categories use `CategoryDisplayInfo.chartTintColor` / `defaultCustomCategoryChartColor`.
+    static func color(for category: ExpenseCategory) -> Color {
+        Color(hex: chartColorHex(for: category))
+    }
+
+    /// Fallback when a custom category has no valid hex.
+    static let defaultCustomCategoryChartColor = chartBarFill
 }
 
 // MARK: - Color Extension

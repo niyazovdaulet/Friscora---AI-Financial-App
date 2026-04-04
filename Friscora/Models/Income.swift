@@ -12,6 +12,8 @@ import Foundation
 /// How this income was created. Used to sync Work salary to Dashboard and avoid duplicates.
 enum IncomeSource: Codable, Equatable {
     case manual
+    /// Synthetic income when a custom category is deleted and linked expenses are removed (balance restored).
+    case categoryDeletionRevert
     case salary(jobId: UUID, paymentDate: Date)
     
     enum CodingKeys: String, CodingKey {
@@ -27,6 +29,8 @@ enum IncomeSource: Codable, Equatable {
             let jobId = try c.decode(UUID.self, forKey: .jobId)
             let paymentDate = try c.decode(Date.self, forKey: .paymentDate)
             self = .salary(jobId: jobId, paymentDate: paymentDate)
+        } else if type == "categoryDeletionRevert" {
+            self = .categoryDeletionRevert
         } else {
             self = .manual
         }
@@ -37,6 +41,8 @@ enum IncomeSource: Codable, Equatable {
         switch self {
         case .manual:
             try c.encode("manual", forKey: .type)
+        case .categoryDeletionRevert:
+            try c.encode("categoryDeletionRevert", forKey: .type)
         case .salary(let jobId, let paymentDate):
             try c.encode("salary", forKey: .type)
             try c.encode(jobId, forKey: .jobId)
@@ -46,6 +52,11 @@ enum IncomeSource: Codable, Equatable {
     
     var isSalary: Bool {
         if case .salary = self { return true }
+        return false
+    }
+
+    var isCategoryDeletionRevert: Bool {
+        if case .categoryDeletionRevert = self { return true }
         return false
     }
 }
@@ -69,6 +80,11 @@ struct Income: Identifiable, Codable {
         self.note = note
         self.currency = currency ?? UserProfileService.shared.profile.currency
         self.source = source
+    }
+
+    /// False for bookkeeping income that mirrors removed category expenses (balance effect is from deleting those expenses only).
+    var countsTowardBalance: Bool {
+        !(source?.isCategoryDeletionRevert ?? false)
     }
     
     enum CodingKeys: String, CodingKey {

@@ -24,18 +24,10 @@ struct AmountView: View {
         CurrencyFormatter.components(amount, currencyCode: currencyCode)
     }
 
-    private var isCompactFormat: Bool {
-        components.minor.isEmpty && components.currency.isEmpty
-    }
-
     var body: some View {
-        if isCompactFormat {
+        ViewThatFits(in: .horizontal) {
+            splitView
             compactLine
-        } else {
-            ViewThatFits(in: .horizontal) {
-                splitView
-                compactLine
-            }
         }
     }
 
@@ -48,10 +40,12 @@ struct AmountView: View {
                 .foregroundColor(AppColorTheme.textPrimary)
                 .monospacedDigit()
 
-            Text(components.minor)
-                .font(minorFont)
-                .foregroundColor(AppColorTheme.textPrimary)
-                .monospacedDigit()
+            if !components.minor.isEmpty {
+                Text(components.minor)
+                    .font(minorFont)
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .monospacedDigit()
+            }
 
             Text(components.currency)
                 .font(currencyFont)
@@ -64,17 +58,20 @@ struct AmountView: View {
     // MARK: - Compact fallback (1.4M PLN)
 
     private var compactLine: some View {
-        Text(compactText)
-            .font(majorFont)
-            .foregroundColor(AppColorTheme.textPrimary)
-            .monospacedDigit()
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .minimumScaleFactor(0.8)
-    }
-
-    private var compactText: String {
-        isCompactFormat ? components.major : CurrencyFormatter.formatCompact(amount, currencyCode: currencyCode)
+        let parts = CurrencyFormatter.compactAmountParts(amount, currencyCode: currencyCode)
+        return HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(parts.numeric)
+                .font(majorFont)
+                .foregroundColor(AppColorTheme.textPrimary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(parts.currency)
+                .font(currencyFont)
+                .foregroundColor(AppColorTheme.textSecondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Semantic typography (Dynamic Type + device scaling)

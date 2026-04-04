@@ -47,21 +47,39 @@ struct CategoryDisplayInfo: Hashable, Identifiable {
     let name: String
     let icon: String
     let isCustom: Bool
-    
+    /// Built-in category when not custom; stable key for colors (localized `name` is not).
+    let builtInCategory: ExpenseCategory?
+    /// Chart color for custom categories (RGB hex, no `#`).
+    let customColorHex: String
+
     /// Create from standard ExpenseCategory (name is localized)
     init(category: ExpenseCategory) {
         self.id = "standard_\(category.rawValue)"
         self.name = category.localizedName
         self.icon = category.icon
         self.isCustom = false
+        self.builtInCategory = category
+        self.customColorHex = ""
     }
-    
+
     /// Create from custom category
     init(customCategory: CustomCategory) {
         self.id = "custom_\(customCategory.id.uuidString)"
         self.name = customCategory.name
         self.icon = customCategory.icon
         self.isCustom = true
+        self.builtInCategory = nil
+        self.customColorHex = customCategory.colorHex
+    }
+
+    /// Custom category row was deleted but expenses still reference this id.
+    init(orphanCustomCategoryId: UUID) {
+        self.id = "deleted_custom_\(orphanCustomCategoryId.uuidString)"
+        self.name = L10n("deleted_category.expense_label")
+        self.icon = "📂"
+        self.isCustom = true
+        self.builtInCategory = nil
+        self.customColorHex = CategoryColorPalette.defaultHex
     }
 }
 
@@ -113,18 +131,22 @@ struct Expense: Identifiable, Codable {
     
     /// Get the display name for the category (localized for standard categories)
     func categoryName(customCategoryService: CustomCategoryService = .shared) -> String {
-        if let customId = customCategoryId,
-           let customCategory = customCategoryService.customCategories.first(where: { $0.id == customId }) {
-            return customCategory.name
+        if let customId = customCategoryId {
+            if let customCategory = customCategoryService.customCategories.first(where: { $0.id == customId }) {
+                return customCategory.name
+            }
+            return L10n("deleted_category.expense_label")
         }
         return category.localizedName
     }
     
     /// Get the icon for the category
     func categoryIcon(customCategoryService: CustomCategoryService = .shared) -> String {
-        if let customId = customCategoryId,
-           let customCategory = customCategoryService.customCategories.first(where: { $0.id == customId }) {
-            return customCategory.icon
+        if let customId = customCategoryId {
+            if let customCategory = customCategoryService.customCategories.first(where: { $0.id == customId }) {
+                return customCategory.icon
+            }
+            return "📂"
         }
         return category.icon
     }

@@ -5,6 +5,7 @@
 //  View for adding new expenses and incomes with modern UI/UX
 //
 
+import Combine
 import SwiftUI
 import UIKit
 
@@ -17,6 +18,7 @@ struct AddExpenseView: View {
     @StateObject private var expenseViewModel = ExpenseViewModel()
     @StateObject private var incomeViewModel = IncomeViewModel()
     @StateObject private var customCategoryService = CustomCategoryService.shared
+    @ObservedObject private var categoryOrderService = ExpenseCategoryOrderService.shared
     @State private var selectedTabIndex: Int = 0
     @State private var selectedCustomCategoryId: UUID? = nil
     @FocusState private var isAmountFocused: Bool
@@ -129,6 +131,14 @@ struct AddExpenseView: View {
             }
             .onAppear {
                 applyLastUsedFromPersistence()
+            }
+            .onChange(of: showEditCategoriesSheet) { _, isOpen in
+                if !isOpen {
+                    snapSelectionToQuickPickerIfNeeded()
+                }
+            }
+            .onReceive(categoryOrderService.$orderedTokens) { _ in
+                snapSelectionToQuickPickerIfNeeded()
             }
         }
     }
@@ -308,39 +318,34 @@ struct AddExpenseView: View {
                 }
             }
             
-            // Built-in categories
+            // First 6 categories from order (Edit Categories → drag to prioritize)
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 8),
                 GridItem(.flexible(), spacing: 8),
                 GridItem(.flexible(), spacing: 8)
             ], spacing: 8) {
-                ForEach(ExpenseCategory.allCases, id: \.self) { category in
-                    CompactCategoryButton(
-                        category: category,
-                        isSelected: expenseViewModel.selectedCategory == category && selectedCustomCategoryId == nil,
-                        action: {
-                            withAnimation(AppAnimation.standard) {
-                                expenseViewModel.selectedCategory = category
-                                selectedCustomCategoryId = nil
+                ForEach(
+                    categoryOrderService.quickPickerRows(customCategories: customCategoryService.customCategories)
+                ) { row in
+                    switch row {
+                    case .builtin(let category):
+                        CompactCategoryButton(
+                            category: category,
+                            isSelected: expenseViewModel.selectedCategory == category && selectedCustomCategoryId == nil,
+                            action: {
+                                withAnimation(AppAnimation.standard) {
+                                    expenseViewModel.selectedCategory = category
+                                    selectedCustomCategoryId = nil
+                                }
+                                HapticHelper.selection()
                             }
-                            HapticHelper.selection()
-                        }
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            
-            // Custom categories
-            if !customCategoryService.customCategories.isEmpty {
-                LazyVGrid(columns: [
-                    GridItem(.flexible(), spacing: 8),
-                    GridItem(.flexible(), spacing: 8),
-                    GridItem(.flexible(), spacing: 8)
-                ], spacing: 8) {
-                    ForEach(customCategoryService.customCategories) { customCategory in
+                        )
+                        .frame(maxWidth: .infinity)
+                    case .custom(let customCategory):
                         CompactCategoryButton(
                             customCategory: customCategory,
-                            isSelected: selectedCustomCategoryId == customCategory.id,
+                            isSelected: selectedCustomCategoryId == customCategory.id
+                                && expenseViewModel.selectedCategory == .other,
                             action: {
                                 withAnimation(AppAnimation.standard) {
                                     selectedCustomCategoryId = customCategory.id
@@ -353,6 +358,12 @@ struct AddExpenseView: View {
                     }
                 }
             }
+
+            Text(L10n("add_transaction.quick_categories_hint"))
+                .font(.caption2)
+                .foregroundColor(AppColorTheme.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
         }
         .padding(16)
         .background(
@@ -488,6 +499,30 @@ struct AddExpenseView: View {
         let (cat, customId) = LastUsedExpenseCategory.load(customCategories: customCategoryService.customCategories)
         expenseViewModel.selectedCategory = cat
         selectedCustomCategoryId = customId
+        snapSelectionToQuickPickerIfNeeded()
+    }
+
+    /// If the restored category is not in the top 6 quick picks, fall back to the first quick-pick slot.
+    private func snapSelectionToQuickPickerIfNeeded() {
+        let customs = customCategoryService.customCategories
+        let quick = categoryOrderService.quickPickerRows(customCategories: customs)
+        let inQuick = quick.contains { row in
+            switch row {
+            case .builtin(let c):
+                return selectedCustomCategoryId == nil && expenseViewModel.selectedCategory == c
+            case .custom(let cc):
+                return selectedCustomCategoryId == cc.id && expenseViewModel.selectedCategory == .other
+            }
+        }
+        guard !inQuick, let first = quick.first else { return }
+        switch first {
+        case .builtin(let c):
+            expenseViewModel.selectedCategory = c
+            selectedCustomCategoryId = nil
+        case .custom(let cc):
+            expenseViewModel.selectedCategory = .other
+            selectedCustomCategoryId = cc.id
+        }
     }
 
     private func clearForm() {
@@ -611,68 +646,60 @@ struct AddCustomCategoryView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var customCategoryService = CustomCategoryService.shared
     @State private var categoryName: String = ""
-    @State private var selectedEmoji: String = "📝"
+    @State private var selectedEmoji: String = CategoryIconReservation.firstAvailableEmoji(excludingCustomCategoryId: nil)
+    @State private var selectedColorHex: String = CategoryColorReservation.firstAvailableChartHex(excludingCustomCategoryId: nil)
     @FocusState private var isNameFocused: Bool
-    
-    let emojiOptions = ["📝", "🎯", "💡", "⭐", "🔥", "💎", "🎨", "🎵", "🏆", "🌟", "✨", "🎪", "🎭", "🎬", "📚", "🎮", "⚽", "🏀", "🎾", "🏊", "🚴", "🎲", "🎰", "💰", "💳", "🏥", "🎓", "🍕", "☕", "🚗"]
-    
+
+    private var trimmedName: String {
+        categoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var nameIsDuplicate: Bool {
+        CategoryNaming.isDuplicate(name: categoryName, excludingCustomCategoryId: nil)
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty && !nameIsDuplicate
+    }
+
+    private var duplicateHint: String? {
+        nameIsDuplicate && !trimmedName.isEmpty ? L10n("category.name_taken") : nil
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section(L10n("category.name")) {
-                    TextField(L10n("add_transaction.enter_category_name"), text: $categoryName)
-                        .focused($isNameFocused)
-                }
-                
-                Section(L10n("category.icon")) {
-                    ScrollView {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 12) {
-                            ForEach(Array(emojiOptions.enumerated()), id: \.offset) { index, emoji in
-                                Button {
-                                    selectedEmoji = emoji
-                                    HapticHelper.selection()
-                                } label: {
-                                    Text(emoji)
-                                        .font(.system(size: 32))
-                                        .frame(width: 50, height: 50)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(selectedEmoji == emoji ? AppColorTheme.accent.opacity(0.2) : AppColorTheme.elevatedBackground)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(selectedEmoji == emoji ? AppColorTheme.accent : Color.clear, lineWidth: 2)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    .frame(height: 300)
-                }
-            }
+            CustomCategoryEditorContent(
+                categoryName: $categoryName,
+                selectedEmoji: $selectedEmoji,
+                selectedColorHex: $selectedColorHex,
+                focusName: $isNameFocused,
+                lockedChartHexes: CategoryColorReservation.lockedChartHexes(excludingCustomCategoryId: nil),
+                lockedEmojis: CategoryIconReservation.lockedEmojis(excludingCustomCategoryId: nil),
+                nameDuplicateMessage: duplicateHint
+            )
             .dismissKeyboardOnTap()
             .navigationTitle(L10n("add_transaction.new_category"))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppColorTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n("common.cancel")) {
                         dismiss()
                     }
+                    .foregroundColor(AppColorTheme.textSecondary)
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n("common.save")) {
                         saveCategory()
                     }
-                    .disabled(categoryName.isEmpty)
+                    .disabled(!canSave)
+                    .fontWeight(.semibold)
+                    .foregroundColor(
+                        canSave ? AppColorTheme.sapphire : AppColorTheme.textTertiary
+                    )
                 }
             }
             .onAppear {
@@ -682,11 +709,13 @@ struct AddCustomCategoryView: View {
             }
         }
     }
-    
+
     private func saveCategory() {
+        guard canSave else { return }
         let newCategory = CustomCategory(
-            name: categoryName,
-            icon: selectedEmoji
+            name: trimmedName,
+            icon: selectedEmoji,
+            colorHex: selectedColorHex
         )
         customCategoryService.addCategory(newCategory)
         HapticHelper.mediumImpact()

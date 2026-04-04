@@ -1,6 +1,6 @@
 # Friscora 💰
 
-A modern, feature-rich personal finance management iOS app built with SwiftUI. Friscora helps you track expenses, manage income, set financial goals, and get AI-powered financial advice—all in a beautiful, intuitive interface.
+A modern, feature-rich personal finance management iOS app built with SwiftUI. Friscora helps you track expenses and income, plan work shifts and pay, set financial goals, and get AI-powered financial advice—all in a cohesive dark-themed interface.
 
 ![iOS](https://img.shields.io/badge/iOS-15.0+-blue.svg)
 ![Swift](https://img.shields.io/badge/Swift-5.0-orange.svg)
@@ -9,324 +9,219 @@ A modern, feature-rich personal finance management iOS app built with SwiftUI. F
 
 ## 📱 Features
 
-### Core Functionality
+### Navigation (main tabs)
+
+- **Dashboard** — Monthly overview, categories, goals entry points, history, and AI adviser
+- **Analytics** — Period controls, spending charts, category detail, savings insights, and trends
+- **Add** — Expenses and income with categories, notes, dates, and multi-currency support
+- **Schedule** — Work jobs, calendar of shifts, optional personal events, salary projection, and work settings
+- **Settings (Profile)** — Profile, security, language, notifications, and app preferences
+
+### Core functionality
 
 - **📊 Dashboard**
-  - Real-time financial overview with monthly income, expenses, and remaining balance
-  - Spending breakdown by category with visual charts
-  - Active goals tracking with progress indicators
-  - Recent activity feed
+  - Real-time financial overview: monthly income, expenses, and remaining balance
+  - Spending breakdown by category with charts
+  - Active goals with progress; navigation to full **Goals** screen
+  - **History** (full transaction list) and **AI Financial Adviser** chat available from the dashboard
   - Month-by-month navigation with historical data
-  - Merge/unmerge past month balances to current month
+  - Merge/unmerge past month balances into the current month
 
-- **💸 Expense Tracking**
+- **📈 Analytics**
+  - Month (or range) aligned with the rest of the app
+  - Primary category spending visualization and insights
+  - Income split views and trend context where applicable
+
+- **💸 Expense tracking**
   - Add, edit, and delete expenses
-  - Support for standard and custom categories
-  - Multi-currency support with automatic conversion
-  - Notes and date tracking
-  - Edit expenses from any month (past or current)
+  - Standard and **custom categories** (icons/colors, ordering, and editing flows)
+  - Multi-currency support with conversion
+  - Notes and date tracking; edit transactions for any month
 
-- **💵 Income Management**
-  - Track multiple income sources
-  - Monthly income totals
-  - Edit incomes from any month
-  - Currency support
+- **💵 Income management**
+  - Multiple income sources and monthly totals
+  - Edit incomes for any month; currency support
 
-- **🎯 Financial Goals**
-  - Create savings goals with target amounts
-  - Track progress with visual indicators
-  - Add progress contributions (deducted from balance)
-  - Goal completion celebrations
-  - Goals integrated with budget calculations
-  - Active and completed goals views
+- **📅 Work schedule**
+  - Multiple jobs and work-day logging on a calendar
+  - **Personal schedule events** alongside work data where supported
+  - Salary projection and sync-related helpers for pay expectations
+  - Toolbar access to job/work settings
+
+- **🎯 Financial goals**
+  - Create goals with target amounts; track progress and contributions
+  - Goal completion flow; integration with budget/balance logic
+  - Open **Goals** from the Dashboard (not a separate tab)
 
 - **🔐 Security**
-  - Optional passcode authentication
-  - Biometric authentication support (Face ID/Touch ID)
-  - Auto-lock when app goes to background
-  - Secure data storage
+  - Optional passcode and biometric authentication (Face ID / Touch ID)
+  - Auto-lock when the app leaves the foreground
+  - Secure storage for sensitive settings
 
-- **🤖 AI Financial Adviser**
-  - Chat-based financial advice
-  - Context-aware recommendations
-  - Personalized insights based on your spending patterns
+- **🤖 AI financial adviser**
+  - Chat-based guidance with context from your data (via the Dashboard entry point)
 
-- **🌍 Multi-Currency Support**
-  - Support for 50+ currencies
-  - Automatic currency conversion
-  - Historical currency tracking
+- **🌍 Localization**
+  - English, Kazakh, Polish, and Russian strings (`en`, `kk`, `pl`, `ru`)
 
-- **📈 Advanced Features**
-  - Custom expense categories with emoji icons
-  - Category spending analysis
-  - Balance carryover from previous months
-  - Month merging for flexible budget management
-  - Comprehensive debug logging
+- **🌍 Multi-currency**
+  - Broad currency support, conversion, and historical handling where used in the app
+
+- **☁️ iCloud (Key-Value)**
+  - Optional sync of UserDefaults-backed data across devices signed into the same iCloud account (requires the iCloud capability in Xcode)
 
 ## 🏗️ Architecture
 
-Friscora follows the **MVVM (Model-View-ViewModel)** architecture pattern:
+Friscora uses **MVVM** (Model-View-ViewModel):
 
-- **Models**: Data structures (`Expense`, `Income`, `Goal`, `UserProfile`, etc.)
-- **Views**: SwiftUI views for UI presentation
-- **ViewModels**: Business logic and state management
-- **Services**: Singleton services for data persistence and business operations
+- **Models** — `Expense`, `Income`, `Goal`, `CustomCategory`, `UserProfile`, work schedule types (`Job`, `WorkDay`, `PersonalScheduleEvent`, etc.)
+- **Views** — SwiftUI; main flows in `DashboardView`, `AnalyticsView`, `AddExpenseView`, `WorkScheduleView` (`ScheduleView`), `ProfileView`, plus `GoalsView`, `HistoryView`, `ChatView`, and shared components
+- **ViewModels** — Observable state for dashboard, analytics, expenses, income, chat, onboarding, and work schedule
+- **Services** — Singletons for persistence, currency, auth, goals, custom categories, iCloud sync, salary/work schedule, and AI context
 
-### Key Components
+### Project layout (high level)
 
 ```
 Friscora/
-├── Models/              # Data models
-│   ├── Expense.swift
-│   ├── Income.swift
-│   ├── Goal.swift
-│   ├── CustomCategory.swift
-│   └── UserProfile.swift
-│
-├── Views/               # SwiftUI views
+├── Models/
+├── Views/
+│   ├── Components/
 │   ├── DashboardView.swift
+│   ├── AnalyticsView.swift
 │   ├── AddExpenseView.swift
+│   ├── WorkScheduleView.swift      # Schedule tab (ScheduleView)
 │   ├── GoalsView.swift
+│   ├── HistoryView.swift
 │   ├── ChatView.swift
 │   ├── ProfileView.swift
-│   └── Components/
-│
-├── ViewModels/          # ViewModels for state management
-│   ├── DashboardViewModel.swift
-│   ├── ExpenseViewModel.swift
-│   ├── IncomeViewModel.swift
-│   └── ChatViewModel.swift
-│
-├── Services/            # Business logic services
-│   ├── ExpenseService.swift
-│   ├── IncomeService.swift
-│   ├── GoalService.swift
-│   ├── CurrencyService.swift
-│   ├── AuthenticationService.swift
-│   └── UserProfileService.swift
-│
-└── Helpers/             # Utilities and helpers
-    ├── AppColorTheme.swift
-    ├── CurrencyFormatter.swift
-    └── ViewModifiers.swift
+│   └── ...
+├── ViewModels/
+├── Services/
+├── Helpers/
+├── Persistence/
+└── *.lproj/Localizable.strings
 ```
 
-## 🚀 Getting Started
+## 🚀 Getting started
 
 ### Prerequisites
 
-- Xcode 14.0 or later
-- iOS 15.0 or later
-- Swift 5.0 or later
+- Xcode 14.0 or later  
+- iOS 15.0 or later  
+- Swift 5.0 or later  
 
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/niyazovdaulet/Friscora---AI-Financial-App.git
 cd Friscora---AI-Financial-App
 ```
 
-2. Firebase (required for Firebase-backed features): in the [Firebase Console](https://console.firebase.google.com), add an iOS app and download `GoogleService-Info.plist`, or copy `Friscora/GoogleService-Info.plist.example` to `Friscora/GoogleService-Info.plist` and replace the placeholder values with your project’s keys.
+2. **Firebase** (if you use Firebase-backed features): in the [Firebase Console](https://console.firebase.google.com), add an iOS app and download `GoogleService-Info.plist`, or copy `Friscora/GoogleService-Info.plist.example` to `Friscora/GoogleService-Info.plist` and fill in your project keys.
 
-3. Open the project in Xcode:
+3. **iCloud** (optional): enable iCloud and Key-Value storage (or as documented in your capabilities) for the app target so `ICloudSyncService` can sync.
+
+4. Open the Xcode project:
+
 ```bash
 open Friscora.xcodeproj
 ```
 
-4. Build and run the project (⌘R)
+5. Build and run (⌘R).
 
-### First Launch
+### First launch
 
-On first launch, the app will guide you through:
-1. **Onboarding**: Set up your initial income
-2. **Currency Selection**: Choose your preferred currency
-3. **Financial Goal**: Select your primary financial objective
-4. **Security**: Optional passcode/biometric setup
-5. **Notifications**: Configure reminder preferences
+On first launch you are guided through onboarding (income, currency, goals, optional security, notifications, etc.).
 
 ## 💻 Usage
 
-### Adding Expenses
+### Adding expenses or income
 
-1. Navigate to the **Add** tab
-2. Select **Expense** type
-3. Enter amount, select category, and add optional note
-4. Choose date (can edit past months)
-5. Tap **Save Transaction**
+1. Open the **Add** tab.  
+2. Choose expense or income, enter amount, category (and note if needed).  
+3. Pick the date (including past months) and save.
 
-### Tracking Income
+### Goals
 
-1. Go to the **Add** tab
-2. Select **Income** type
-3. Enter amount and optional note
-4. Select date
-5. Save the transaction
+Open **Goals** from the **Dashboard** (links and shortcuts there). Create goals, track progress, and record contributions from that screen.
 
-### Creating Goals
+### History and AI chat
 
-1. Navigate to the **Goals** tab
-2. Tap the **+** button
-3. Enter goal title and target amount
-4. Optionally set a deadline
-5. Add progress by tapping on a goal and entering amount
+From the **Dashboard**, open **History** for a full list of transactions, or the **AI** flow for chat-based advice.
 
-### Viewing Dashboard
+### Analytics
 
-The Dashboard shows:
-- **Monthly Income**: Total income for selected month
-- **Total Expenses**: All expenses for the month
-- **Remaining Balance**: Income - Expenses - Goal Allocations
-- **Spending by Category**: Visual breakdown
-- **Allocated Savings**: Active goals and progress
-- **Recent Activity**: Latest transactions
+Use the **Analytics** tab to change the month, explore category spending, and read insights for the selected period.
 
-### Month Navigation
+### Schedule (work & personal)
 
-- Tap the month selector in the top-right
-- Select any month from installation date to current
-- View historical financial data
-- **Merge/Unmerge**: For past months, use the merge button to add that month's balance to the current month
+Use the **Schedule** tab to add jobs, log work days on the calendar, review projections, and adjust work settings from the toolbar. Personal events can appear in the same calendar flow where enabled.
 
-### Custom Categories
+### Custom categories
 
-1. Go to **Add** tab → **Category** section
-2. Tap **Edit** button
-3. Create custom categories with emoji icons
-4. Custom categories appear in spending breakdown
+From the **Add** flow, use the category editor to create and manage custom categories (appearance and order are persisted with the rest of your data).
 
-## 🎨 Design System
+### Month navigation (Dashboard)
 
-Friscora uses a professional dark theme with:
-- **Primary Color**: Deep Navy (#0B1F33)
-- **Accent Color**: Soft Teal (#2EC4B6)
-- **Positive**: Teal (for income)
-- **Negative**: Red (for expenses)
-- **Balance Highlight**: Soft Blue
+Use the month control to move between months. For past months, merge or unmerge balances into the current month when you need a combined view.
 
-The app is designed with:
-- Smooth animations and transitions
-- Haptic feedback for interactions
-- Modern card-based UI
-- Intuitive navigation
+## 🎨 Design system
 
-## 🔧 Technical Details
+Friscora uses a dark-first theme (see `AppColorTheme` and design helpers): deep navy base, teal accent, clear positive/negative semantics, cards, haptics, and shared motion via `AppAnimation`.
 
-### Data Persistence
+## 🔧 Technical details
 
-- **UserDefaults**: Used for storing expenses, incomes, goals, and user preferences
-- **CoreData**: Prepared for future migration (CoreDataStack included)
+### Data persistence
 
-### Currency Conversion
+- **UserDefaults** — Primary store for expenses, incomes, goals, profile, work schedule data, and related preferences  
+- **iCloud Key-Value** — Optional cross-device sync via `ICloudSyncService` (last-write-wins)  
+- **Core Data** — Stack present for future or auxiliary use; check the project for current wiring  
 
-- Real-time currency conversion using external API
-- Historical currency tracking
-- Automatic conversion when viewing multi-currency transactions
+### Currency
+
+Conversion and formatting are handled through dedicated services and formatters (`CurrencyService`, `CurrencyFormatter`, etc.).
 
 ### Authentication
 
-- Passcode-based authentication
-- Biometric authentication (Face ID/Touch ID)
-- Auto-lock on app background
-- Secure keychain storage
+Passcode and biometrics with auto-lock; secure storage for secrets.
 
-### Debug Logging
+### Debug logging
 
-Comprehensive debug prints for:
-- Transaction additions/updates/deletions
-- Goal progress tracking
-- Balance calculations
-- Month merging operations
-- Financial summaries
+Verbose logging is available in development builds—use the Xcode console while debugging.
 
-View debug output in Xcode console.
+## 📊 Financial calculations (summary)
 
-## 📊 Financial Calculations
-
-### Remaining Balance Formula
-
-```
-Remaining Balance = Monthly Income + Carryover + Merged Balance - Total Expenses - Goal Allocations
-```
-
-Where:
-- **Monthly Income**: Sum of all income for the month
-- **Carryover**: Positive balance from previous month
-- **Merged Balance**: Sum of merged past month balances (current month only)
-- **Total Expenses**: Sum of all expenses for the month
-- **Goal Allocations**: Money allocated to goals (deducted from balance)
-
-### Goal Integration
-
-- Goal progress additions are **deducted** from remaining balance
-- Goals appear in Dashboard as "Allocated Savings"
-- Goal allocations are included in monthly calculations
+Remaining balance reflects monthly income, carryover, merged past balances, expenses, and goal allocations. Goal contributions reduce available balance as implemented in `DashboardViewModel` and related services.
 
 ## 🛠️ Development
 
-### Project Structure
-
-The project follows a clean architecture with clear separation of concerns:
-
-- **Models**: Pure data structures, Codable for persistence
-- **Services**: Singleton services managing business logic and data
-- **ViewModels**: ObservableObject classes managing view state
-- **Views**: SwiftUI views with minimal logic
-
-### Adding New Features
-
-1. Create model in `Models/` if needed
-2. Add service methods in appropriate `Services/` file
-3. Create ViewModel if complex state management required
-4. Build SwiftUI view in `Views/`
-5. Wire up in appropriate tab or navigation
-
-### Debug Mode
-
-The app includes extensive debug logging. To view:
-1. Run app in Xcode
-2. Open Console (⌘⇧Y)
-3. Filter by app name or search for emoji markers:
-   - 💰 Expense operations
-   - 💵 Income operations
-   - 🎯 Goal operations
-   - 📊 Financial summaries
-   - 🔗 Merge operations
+- **Models** — Prefer `Codable` (and existing coding patterns) for anything persisted.  
+- **New features** — Add models, extend services, introduce a ViewModel when state is non-trivial, then compose SwiftUI views and wire tabs or navigation from existing entry points.  
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License—see the LICENSE file.
 
 ## 👤 Author
 
-**Daulet**
-- Created: December 28, 2025
+**Daulet** — Created December 28, 2025.
 
 ## 🙏 Acknowledgments
 
-- Built with SwiftUI and modern iOS development practices
-- Uses Combine for reactive programming
-- Implements MVVM architecture pattern
+Built with SwiftUI, Combine, and MVVM-oriented structure.
 
-## 🔮 Future Enhancements
+## 🔮 Possible future enhancements
 
-Potential features for future versions:
-- [ ] CoreData migration for better data management
-- [ ] Cloud sync across devices
-- [ ] Export financial reports (PDF/CSV)
-- [ ] Recurring transactions
-- [ ] Budget limits and alerts
-- [ ] Investment tracking
-- [ ] Bill reminders
-- [ ] Receipt scanning with OCR
-- [ ] Dark/Light mode toggle
-- [ ] Widget support
+- Deeper Core Data or CloudKit integration beyond Key-Value sync  
+- Export (PDF/CSV), recurring transactions, budgets/alerts  
+- Widgets, alternate themes, richer receipt capture  
 
 ## 📞 Support
 
-For issues, questions, or contributions, please open an issue on the GitHub repository.
+For issues or contributions, open an issue on the [GitHub repository](https://github.com/niyazovdaulet/Friscora---AI-Financial-App).
 
 ---
 
-**Friscora** - Your personal financial companion 💰✨
-
+**Friscora** — Your personal financial companion 💰✨

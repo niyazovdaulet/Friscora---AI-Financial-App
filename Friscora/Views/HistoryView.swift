@@ -479,7 +479,16 @@ struct HistoryActivityRow: View {
                             .font(.system(size: 20, weight: .semibold))
                     }
                 } else if activity.isIncome {
-                    if case .income(let income) = activity.type, income.source?.isSalary == true {
+                    if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
+                        ZStack {
+                            Circle()
+                                .fill(AppColorTheme.positive.opacity(0.15))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "tray.and.arrow.up.fill")
+                                .foregroundColor(AppColorTheme.positive)
+                                .font(.system(size: 20, weight: .semibold))
+                        }
+                    } else if case .income(let income) = activity.type, income.source?.isSalary == true {
                         ZStack {
                             Circle()
                                 .fill(AppColorTheme.positive.opacity(0.15))
@@ -527,7 +536,12 @@ struct HistoryActivityRow: View {
                                 .foregroundColor(AppColorTheme.textPrimary)
                         }
                     } else if activity.isIncome {
-                        if case .income(let income) = activity.type, income.source?.isSalary == true {
+                        if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
+                            Text(L10n("deleted_category.income_title"))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppColorTheme.textPrimary)
+                        } else if case .income(let income) = activity.type, income.source?.isSalary == true {
                             Text(L10n("activity.salary"))
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
@@ -627,6 +641,9 @@ struct HistoryActivityRow: View {
             if !activity.isMergedBalance {
                 let typeLabel: String = {
                     if activity.isGoalContribution { return L10n("activity.goal_contribution") }
+                    if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
+                        return L10n("deleted_category.income_title")
+                    }
                     if case .income(let income) = activity.type, income.source?.isSalary == true { return L10n("activity.salary") }
                     if activity.isIncome { return L10n("activity.income") }
                     return L10n("activity.expense")

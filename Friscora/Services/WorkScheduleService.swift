@@ -8,25 +8,29 @@
 import Foundation
 import Combine
 
-/// Service for managing work schedule
+/// Service for managing work schedule and personal (non-work) schedule entries.
 class WorkScheduleService: ObservableObject {
     static let shared = WorkScheduleService()
     
     @Published var workDays: [WorkDay] = []
     @Published var jobs: [Job] = []
+    @Published var personalEvents: [PersonalScheduleEvent] = []
     
     private let workDaysKey = "saved_work_days"
     private let jobsKey = "saved_jobs"
+    private let personalEventsKey = "saved_personal_schedule_events"
     
     private init() {
         loadWorkDays()
         loadJobs()
+        loadPersonalEvents()
         NotificationCenter.default.addObserver(self, selector: #selector(handleICloudSyncUpdate), name: .ICloudSyncDidUpdate, object: nil)
     }
     
     @objc private func handleICloudSyncUpdate() {
         loadWorkDays()
         loadJobs()
+        loadPersonalEvents()
     }
     
     // MARK: - Work Days
@@ -159,5 +163,114 @@ class WorkScheduleService: ObservableObject {
     /// Check if user has any jobs
     var hasJobs: Bool {
         !jobs.isEmpty
+    }
+    
+    var hasPersonalEvents: Bool {
+        !personalEvents.isEmpty
+    }
+    
+    // MARK: - Personal events (excluded from salary / forecast)
+    
+    func loadPersonalEvents() {
+        guard let data = UserDefaults.standard.data(forKey: personalEventsKey),
+              let decoded = try? JSONDecoder().decode([PersonalScheduleEvent].self, from: data) else {
+            personalEvents = []
+            return
+        }
+        personalEvents = decoded
+    }
+    
+    private func savePersonalEvents() {
+        if let encoded = try? JSONEncoder().encode(personalEvents) {
+            UserDefaults.standard.set(encoded, forKey: personalEventsKey)
+            ICloudSyncService.shared.syncToCloud()
+        }
+    }
+    
+    func personalEvents(onSameDayAs date: Date) -> [PersonalScheduleEvent] {
+        let cal = Calendar.current
+        return personalEvents.filter { cal.isDate($0.date, inSameDayAs: date) }
+            .sorted { $0.startMinutesFromMidnight < $1.startMinutesFromMidnight }
+    }
+    
+    func addOrUpdatePersonalEvent(_ event: PersonalScheduleEvent) {
+        var e = event
+        e.date = Calendar.current.startOfDay(for: event.date)
+        if let index = personalEvents.firstIndex(where: { $0.id == e.id }) {
+            personalEvents[index] = e
+        } else {
+            personalEvents.append(e)
+        }
+        savePersonalEvents()
+    }
+    
+    func deletePersonalEvent(_ event: PersonalScheduleEvent) {
+        personalEvents.removeAll { $0.id == event.id }
+        savePersonalEvents()
+    }
+    
+    func deleteAllPersonalEvents(inMonth month: Date) {
+        let cal = Calendar.current
+        personalEvents.removeAll { cal.isDate($0.date, equalTo: month, toGranularity: .month) }
+        savePersonalEvents()
+    }
+    
+    // MARK: - Schedule overlap (work + personal)
+    
+    /// Half-open interval [start, end) in absolute time.
+    func hasScheduleOverlap(
+        on day: Date,
+        proposedStart: Date,
+        proposedEnd: Date,
+        ignoringPersonalEventId: UUID? = nil,
+        ignoringWorkDayId: UUID? = nil,
+        calendar: Calendar = .current
+    ) -> Bool {
+        guard proposedEnd > proposedStart else { return false }
+        for block in scheduleTimeBlocks(onSameDayAs: day, calendar: calendar) {
+            if let pid = block.personalEventId, pid == ignoringPersonalEventId { continue }
+            if let wid = block.workDayId, wid == ignoringWorkDayId { continue }
+            if proposedStart < block.end && proposedEnd > block.start { return true }
+        }
+        return false
+    }
+    
+    private struct ScheduleTimeBlock {
+        let start: Date
+        let end: Date
+        let workDayId: UUID?
+        let personalEventId: UUID?
+    }
+    
+    private func scheduleTimeBlocks(onSameDayAs date: Date, calendar: Calendar) -> [ScheduleTimeBlock] {
+        var blocks: [ScheduleTimeBlock] = []
+        for wd in workDays where calendar.isDate(wd.date, inSameDayAs: date) {
+            if let interval = workDayInterval(wd, calendar: calendar) {
+                blocks.append(ScheduleTimeBlock(start: interval.start, end: interval.end, workDayId: wd.id, personalEventId: nil))
+            }
+        }
+        for ev in personalEvents where calendar.isDate(ev.date, inSameDayAs: date) {
+            let interval = ev.absoluteInterval(calendar: calendar)
+            blocks.append(ScheduleTimeBlock(start: interval.start, end: interval.end, workDayId: nil, personalEventId: ev.id))
+        }
+        return blocks
+    }
+    
+    private func workDayInterval(_ workDay: WorkDay, calendar: Calendar) -> (start: Date, end: Date)? {
+        let day = calendar.startOfDay(for: workDay.date)
+        if let cs = workDay.customStartMinutesFromMidnight, let ce = workDay.customEndMinutesFromMidnight {
+            guard let s = calendar.date(byAdding: .minute, value: cs, to: day),
+                  var e = calendar.date(byAdding: .minute, value: ce, to: day) else { return nil }
+            if e <= s { e = calendar.date(byAdding: .day, value: 1, to: e) ?? e }
+            return (s, e)
+        }
+        if let job = job(withId: workDay.jobId), let sid = workDay.shiftId, let shift = job.shift(withId: sid) {
+            guard let s = calendar.date(byAdding: .minute, value: shift.startMinutesFromMidnight, to: day),
+                  var e = calendar.date(byAdding: .minute, value: shift.endMinutesFromMidnight, to: day) else { return nil }
+            if e <= s { e = calendar.date(byAdding: .day, value: 1, to: e) ?? e }
+            return (s, e)
+        }
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else { return nil }
+        return (day, nextDay)
     }
 }

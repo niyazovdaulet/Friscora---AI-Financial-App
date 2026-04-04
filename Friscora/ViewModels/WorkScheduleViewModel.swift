@@ -15,6 +15,8 @@ class WorkScheduleViewModel: ObservableObject {
     @Published var estimatedSalary: Double = 0
     @Published var averageDailyHours: Double = 0
     @Published var projectedPayments: [ProjectedPayment] = []
+    /// Work shifts (work-day entries) in the selected month — used to explain salary forecast copy.
+    @Published var scheduledShiftCountForSelectedMonth: Int = 0
     
     private let workScheduleService = WorkScheduleService.shared
     private let userProfileService = UserProfileService.shared
@@ -100,6 +102,10 @@ class WorkScheduleViewModel: ObservableObject {
         // Calculate projected payments for NEXT month
         let payments = calculateProjectedPaymentsForMonth(targetMonth)
         
+        let shiftCount = workScheduleService.workDays.filter { workDay in
+            calendar.isDate(workDay.date, equalTo: targetMonth, toGranularity: .month)
+        }.count
+        
         // Update all properties at once to avoid partial state updates
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -109,6 +115,7 @@ class WorkScheduleViewModel: ObservableObject {
                 self.estimatedSalary = salary
                 self.averageDailyHours = avgHours
                 self.projectedPayments = payments
+                self.scheduledShiftCountForSelectedMonth = shiftCount
             }
         }
     }

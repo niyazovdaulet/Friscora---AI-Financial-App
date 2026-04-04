@@ -6,6 +6,8 @@
 "settings.section.account" = "Account";
 "settings.section.security" = "Security";
 "settings.section.notifications" = "Notifications";
+"settings.section.schedule" = "Schedule";
+"settings.schedule_forecast_footer" = "Income forecast and salary sync use scheduled work shifts only. Personal events on your schedule are never included unless you add that option later.";
 "settings.section.about" = "About";
 "settings.language" = "Language";
 "settings.data" = "Data";
@@ -90,7 +92,8 @@
 
 /* Tab bar */
 "tab.dashboard" = "Dashboard";
-"tab.work" = "Work";
+"tab.schedule" = "Schedule";
+"tab.work" = "Schedule";
 "tab.add" = "Add";
 "tab.goals" = "Goals";
 "tab.analytics" = "Analytics";
@@ -127,10 +130,29 @@
 "category.other" = "Other";
 "category.name" = "Category Name";
 "category.icon" = "Icon";
+"category.chart_color" = "Chart color";
+"category.chart_color.hint" = "Used in spending breakdown and analytics.";
+"category.chart_color.a11y_swatch" = "Chart color option %@";
+"category.chart_color.a11y_locked" = "Color %@, already used — pick another.";
+"category.name_taken" = "A category with this name already exists.";
+"category.icon_show_more" = "More";
+"category.icon_show_less" = "Less";
+"category.icon.tap_to_change" = "Choose icon";
+"category.icon.collapse_hint" = "Tap to expand and pick from the full set.";
+"category.icon_collapse" = "Hide";
+"category.icon.a11y_option" = "Icon %@";
+"category.icon.a11y_locked" = "Icon %@ is already used — pick another.";
+
+"deleted_category.expense_label" = "Deleted category";
+"deleted_category.income_title" = "Deleted category";
+
+"add_transaction.quick_categories_hint" = "Shows your top six from Edit Categories — reorder there to change this grid.";
 
 /* Dashboard */
 "dashboard.income" = "Income";
 "dashboard.expenses" = "Expenses";
+"dashboard.kpi.savings" = "Savings";
+"dashboard.kpi.balance" = "Balance";
 "dashboard.remaining_balance" = "Remaining Balance";
 "dashboard.spending_by_category" = "Spending by Category";
 "dashboard.empty_categories" = "A clean start. Add your first expense to begin tracking.";
@@ -151,6 +173,7 @@
 "dashboard.edit_income" = "Edit Income";
 "dashboard.income_label" = "Income";
 "dashboard.to_goal" = "To goal: %@";
+"dashboard.schedule_income_note" = "Salary entries from the Schedule tab reflect scheduled work shifts only; personal events there do not change this amount.";
 
 /* Analytics */
 "analytics.title" = "Analytics";
@@ -162,6 +185,9 @@
 "analytics.income_breakdown" = "Income breakdown";
 "analytics.no_data" = "No data for this period";
 "analytics.vs_last_month" = "vs last month";
+"analytics.trend.empty_income" = "No income yet";
+"analytics.trend.empty_expenses" = "No spendings yet";
+"analytics.trend.empty_savings" = "No savings yet";
 "analytics.vs_prev" = "vs prev. mo.";
 "analytics.insights_title" = "Insights";
 "analytics.insight.top_category" = "%@ takes %d%% of your expenses.";
@@ -177,6 +203,20 @@
 "analytics.pie.expenses" = "Expenses";
 "analytics.pie.savings" = "Savings";
 "analytics.pie.remaining" = "Remaining";
+"analytics.income_split.title" = "This month’s income split";
+"analytics.income_split.of_income" = "of income";
+"analytics.income_split.used_of_income" = "%@ of %@";
+"analytics.income_split.summary_spent_of_income" = "Spent %@ out of %@";
+"analytics.income_split.summary_allocated_only" = "%@ in expenses and savings";
+"analytics.income_split.bar_full_equals_income" = "Full bar equals income this month.";
+"analytics.income_split.overflow_hint" = "Spending and savings exceed income; the bar is scaled to total outflows.";
+"analytics.income_split.no_income_hint" = "Bar shows spending and savings relative to each other. Add income to include unallocated funds as a share of income.";
+"analytics.income_split.a11y.hint" = "Shows or hides the income split bar and legend.";
+"analytics.income_split.a11y.expanded" = "Expanded";
+"analytics.income_split.a11y.collapsed" = "Collapsed";
+"analytics.income_split.a11y.bar_label" = "%@, %@";
+"analytics.income_split.a11y.segmented_summary" = "Summary: expenses %@, savings %@, remaining %@, versus income %@.";
+"analytics.income_split.a11y.segmented_summary_no_remaining" = "Expenses %@, savings %@; bar scaled to spending and savings.";
 
 /* Add Transaction */
 "add_transaction.title" = "Add Transaction";
@@ -204,14 +244,76 @@
 "work.estimated_salary" = "Estimated Salary";
 "work.salary_projection" = "Salary Projection";
 "work.no_payments_scheduled" = "No payments scheduled";
-"work.delete_month_confirm" = "Are you sure you want to delete all work hours for %@? This action cannot be undone.";
+"work.delete_month_confirm" = "Delete all scheduled work shifts for %@? Personal events on those days are kept. This can’t be undone.";
 "work.hours_short" = "h";
-"work.clear_all" = "Clear All Hours";
+"work.clear_all" = "Clear work shifts";
 "work.clear_all_button" = "Clear All";
+
+/* Schedule (tab + day sheet) */
+"schedule.onboarding.title" = "Track pay from work shifts";
+"schedule.onboarding.detail" = "Tap a date to open the Shift Composer—add a work shift or a personal event without leaving the calendar. Add a job when you’re ready for hours, salary estimate, and forecast.";
+"schedule.forecast_scope_title" = "How forecast works";
+"schedule.segment.work" = "Work shift";
+"schedule.segment.event" = "Event";
+"schedule.add_kind_picker_a11y" = "Add: work shift or personal event";
+"schedule.day.items_header" = "This day";
+"schedule.day.empty" = "Nothing scheduled yet — pick a tab below to add.";
+"schedule.work_form_header" = "Work shift";
+"schedule.work_form_no_jobs" = "Add a job (briefcase button) to log paid shifts.";
+"schedule.event.section_title" = "Personal event";
+"schedule.event.title_label" = "Title";
+"schedule.event.title_placeholder" = "Appointment, focus block…";
+"schedule.event.title_rules_hint" = "At least 3 characters; can't be only numbers.";
+"schedule.event.start_label" = "Starts";
+"schedule.event.end_label" = "Ends";
+"schedule.event.show_busy" = "Show as Busy (hide title on calendar)";
+"schedule.event.forecast_footer" = "Won’t change income forecast or salary sync.";
+"schedule.event.untitled" = "Event";
+"schedule.busy_placeholder" = "Busy";
+"schedule.toolbar.jobs_a11y" = "Jobs and pay settings";
+"schedule.projection_based_on_shifts" = "Based on %lld scheduled shifts in this month.";
+"schedule.overlap.title" = "Time overlap";
+"schedule.overlap.message" = "This time overlaps another item on the same day.";
+"schedule.overlap.save_anyway" = "Save anyway";
+"schedule.a11y.work_shift" = "Work shift";
+"schedule.a11y.personal_event" = "Personal event";
+"schedule.a11y.work_count" = "%lld work shifts";
+"schedule.a11y.event_count" = "%lld personal events";
+"schedule.a11y.open_day_hint" = "Opens details for this day.";
+"schedule.a11y.add_day_hint" = "Add a work shift or personal event.";
+"schedule.a11y.day_cell_hint" = "Opens or closes the Shift Composer for this day. Tap again on the same date to close.";
+"schedule.a11y.inspector_open" = "Details open";
+"schedule.a11y.composer_open" = "Composer open";
+"schedule.composer.add_to_day_subtitle" = "Add to this day";
+"schedule.composer.action_work" = "+ Shift";
+"schedule.composer.action_event" = "+ Event";
+"schedule.composer.dismiss_a11y" = "Dismiss day composer";
+"schedule.composer.dismiss_hint_a11y" = "Closes the composer and returns to the calendar.";
+"schedule.composer.back_collapsed_a11y" = "Back to quick actions";
+"schedule.composer.earnings_preview_title" = "Estimated earnings";
+"schedule.composer.earnings_hours_money" = "%1$.1f h · %2$@";
+"schedule.composer.rate_missing" = "Add an hourly rate in job settings to see an estimate for this shift.";
+"schedule.composer.fixed_monthly_hint" = "Fixed monthly pay — shift length doesn’t change per-shift pay here.";
+"schedule.composer.stats_sep" = " · ";
+"schedule.composer.entry_count" = "%lld entries";
+"schedule.composer.adjust_times" = "Adjust times";
+"schedule.composer.event_add" = "Add event";
+"schedule.composer.add_shift" = "Add shift";
+"schedule.composer.approx_earnings_fragment" = "≈ %@";
+"schedule.inspector.close_a11y" = "Close day details";
+"schedule.inspector.close_hint_a11y" = "Collapses the panel over the calendar.";
+"schedule.inspector.overlay_a11y" = "Day details shown on top of the calendar.";
+"schedule.inspector.add_more_a11y" = "Add another work shift or personal event";
+"schedule.inspector.moved_here_a11y" = "Day details opened below the calendar.";
+"schedule.item.work_fallback" = "Work";
+"schedule.summary_forecast_footer" = "Forecast uses scheduled work shifts only, not personal events.";
 
 /* Work Hours */
 "work_hours.title" = "Work Hours";
 "work_hours.select_job" = "Select Job";
+"work_hours.change_job" = "Change job";
+"work_hours.change_shift" = "Change shift";
+"work_hours.add_shift_a11y" = "Add shift";
 "work_hours.hours_worked" = "Hours Worked";
 "work_hours.hrs" = "hrs";
 "work_hours.save" = "Save";
@@ -325,13 +427,20 @@
 "history.select_date_range" = "Select Date Range";
 
 /* Edit Categories */
-"edit_categories.title" = "Edit Categories";
+"edit_categories.title" = "Categories";
 "edit_categories.builtin_not_editable" = "Built-in categories cannot be edited";
 "edit_categories.builtin" = "Built-in Categories";
 "edit_categories.no_custom" = "No custom categories yet";
 "edit_categories.custom" = "Custom Categories";
-"edit_categories.tap_to_edit" = "Tap a category to edit, or swipe to delete";
+"edit_categories.tap_to_edit" = "Tap a category to edit, or drag to reorder";
+"edit_categories.quick_pick_explanation" = "Tap Edit in the toolbar, then drag to reorder. The first six categories in this list are the ones shown in Add Transaction. All categories still work everywhere else in the app.";
+"edit_categories.all_categories_header" = "All categories";
+"edit_categories.quick_pick_divider_badge" = "ADD TRANSACTION";
+"edit_categories.quick_pick_divider_hint" = "The six categories above appear in Add Transaction when you add an expense.";
 "edit_category.title" = "Edit Category";
+"edit_category.delete" = "Delete Category";
+"edit_category.delete_confirm_title" = "Delete this category?";
+"edit_category.delete_confirm_message" = "All expenses in this category will be removed and their amounts returned to your balance. Each one will also appear in your history as income titled Deleted category.";
 
 /* Chat / AI Adviser */
 "chat.title" = "AI Adviser";

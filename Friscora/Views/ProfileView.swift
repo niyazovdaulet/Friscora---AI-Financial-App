@@ -99,6 +99,19 @@ struct ProfileView: View {
                         }
                     }
 
+                    Section(L10n("settings.section.schedule")) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "calendar.badge.clock")
+                                .foregroundColor(AppColorTheme.sapphire)
+                                .frame(width: 24)
+                            Text(L10n("settings.schedule_forecast_footer"))
+                                .font(AppTypography.caption)
+                                .foregroundColor(AppColorTheme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .listRowBackground(AppColorTheme.cardBackground.opacity(0.5))
+                    }
+
                     Section(L10n("settings.data")) {
                         NavigationLink {
                             ICloudSyncView()
@@ -489,7 +502,8 @@ struct ExportDataView: View {
         IncomeService.shared.incomes.isEmpty &&
         GoalService.shared.goals.isEmpty &&
         WorkScheduleService.shared.workDays.isEmpty &&
-        WorkScheduleService.shared.jobs.isEmpty
+        WorkScheduleService.shared.jobs.isEmpty &&
+        WorkScheduleService.shared.personalEvents.isEmpty
     }
     
     /// Rounds to 2 decimal places to avoid floating-point display (e.g. 99.9359999 → 99.94).
@@ -625,6 +639,17 @@ struct ExportDataView: View {
             csv += "\n"
         }
         
+        let personalEvts = workService.personalEvents.sorted { $0.date > $1.date }
+        if !personalEvts.isEmpty {
+            csv += "Schedule_PersonalEvents\n"
+            csv += "Date,Title,StartMinutes,EndMinutes,ShowAsBusy\n"
+            for ev in personalEvts {
+                let t = csvEscape(ev.title)
+                csv += "\(dateFormatter.string(from: ev.date)),\(t),\(ev.startMinutesFromMidnight),\(ev.endMinutesFromMidnight),\(ev.showAsBusy)\n"
+            }
+            csv += "\n"
+        }
+        
         // ----- Analytics: Per-month summary -----
         let allMonths = (Set(expenseService.expenses.map { calendar.date(from: calendar.dateComponents([.year, .month], from: $0.date)) ?? $0.date })
             .union(Set(incomeService.incomes.map { calendar.date(from: calendar.dateComponents([.year, .month], from: $0.date)) ?? $0.date })))
@@ -743,6 +768,11 @@ struct EraseDataView: View {
             UserDefaults.standard.set(encoded, forKey: "saved_custom_categories")
         }
         CustomCategoryService.shared.loadCategories()
+        UserDefaults.standard.removeObject(forKey: ExpenseCategoryOrderService.storageKey)
+        ExpenseCategoryOrderService.shared.resetAfterDataErase(customCategories: [])
+        
+        UserDefaults.standard.removeObject(forKey: "saved_personal_schedule_events")
+        WorkScheduleService.shared.loadPersonalEvents()
         
         dismiss()
     }

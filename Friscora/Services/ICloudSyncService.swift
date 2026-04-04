@@ -22,6 +22,7 @@ private enum SyncKey {
     static let customCategories = "saved_custom_categories"
     static let workDays = "saved_work_days"
     static let jobs = "saved_jobs"
+    static let personalScheduleEvents = "saved_personal_schedule_events"
     static let userProfile = "user_profile"
     static let syncTimestamp = "friscora_sync_timestamp"
 }
@@ -50,6 +51,7 @@ final class ICloudSyncService: ObservableObject {
         (SyncKey.customCategories, SyncKey.customCategories),
         (SyncKey.workDays, SyncKey.workDays),
         (SyncKey.jobs, SyncKey.jobs),
+        (SyncKey.personalScheduleEvents, SyncKey.personalScheduleEvents),
         (SyncKey.userProfile, SyncKey.userProfile)
     ]
     

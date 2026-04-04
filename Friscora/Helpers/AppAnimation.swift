@@ -13,7 +13,7 @@ enum AppAnimation {
 
     // MARK: - Tab & segment
 
-    /// Tab bar and segment changes (MainTabView, AddExpenseView, GoalsView, WorkScheduleView).
+    /// Tab bar and segment changes (MainTabView, AddExpenseView, GoalsView, ScheduleView).
     static let tabSwitch = Animation.spring(response: 0.35, dampingFraction: 0.78)
 
     /// Toggle chips, filter segments (e.g. Analytics chart type).
@@ -23,6 +23,12 @@ enum AppAnimation {
 
     /// Expand/collapse sections (e.g. Dashboard category block).
     static let cardExpand = Animation.spring(response: 0.38, dampingFraction: 0.82)
+
+    /// Inline schedule day inspector show / hide under the calendar (short, polished spring).
+    static let inspectorReveal = Animation.spring(response: 0.34, dampingFraction: 0.84)
+
+    /// Schedule “Shift Composer” stage changes (collapsed ↔ expanded paths).
+    static let composerStage = Animation.spring(response: 0.42, dampingFraction: 0.82)
 
     /// Button press feedback, small state changes.
     static let buttonPress = Animation.spring(response: 0.2, dampingFraction: 0.7)
@@ -69,6 +75,12 @@ enum AppAnimation {
 
     /// Bar chart fill progress (slightly longer for bar growth).
     static let chartBarReveal = Animation.easeOut(duration: 0.55)
+
+    /// Analytics income split: segmented capsule grows in with a smooth spring.
+    static let incomeSplitSegmentReveal = Animation.spring(response: 0.55, dampingFraction: 0.86)
+
+    /// Income split segment selection / callout (light).
+    static let incomeSplitCallout = Animation.spring(response: 0.32, dampingFraction: 0.82)
 
     /// Line chart: tap/drag indicator and overlay (short).
     static let lineChartInteraction = Animation.easeInOut(duration: 0.15)

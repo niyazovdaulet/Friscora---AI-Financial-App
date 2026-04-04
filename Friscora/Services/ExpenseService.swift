@@ -185,13 +185,14 @@ class ExpenseService: ObservableObject {
         for expense in monthExpenses {
             let amount = expense.currency == currentCurrency ? expense.amount : expense.amount
             
-            // Check if expense has a custom category
             if let customId = expense.customCategoryId,
                let customCategory = customCategoryService.customCategories.first(where: { $0.id == customId }) {
                 let categoryInfo = CategoryDisplayInfo(customCategory: customCategory)
                 categoryTotals[categoryInfo, default: 0] += amount
+            } else if let customId = expense.customCategoryId {
+                let categoryInfo = CategoryDisplayInfo(orphanCustomCategoryId: customId)
+                categoryTotals[categoryInfo, default: 0] += amount
             } else {
-                // Use standard category
                 let categoryInfo = CategoryDisplayInfo(category: expense.category)
                 categoryTotals[categoryInfo, default: 0] += amount
             }

@@ -6,6 +6,8 @@
 "settings.section.account" = "Тіркелгі";
 "settings.section.security" = "Қауіпсіздік";
 "settings.section.notifications" = "Хабарландырулар";
+"settings.section.schedule" = "Кесте";
+"settings.schedule_forecast_footer" = "Кіріс болжамы мен жалақы синхрондауы тек жоспарланған жұмыс ауысымдарын қамтиды. Кестедегі жеке оқиғалар есептелмейді (кейін бөлек опция болмайынша).";
 "settings.section.about" = "Қосымша туралы";
 "settings.language" = "Тіл";
 "settings.data" = "Деректер";
@@ -87,7 +89,8 @@
 "language.applying" = "Тіл қолданылуда…";
 
 "tab.dashboard" = "Басты бет";
-"tab.work" = "Жұмыс";
+"tab.schedule" = "Кесте";
+"tab.work" = "Кесте";
 "tab.add" = "Қосу";
 "tab.goals" = "Мақсаттар";
 "tab.analytics" = "Аналитика";
@@ -121,9 +124,28 @@
 "category.other" = "Басқа";
 "category.name" = "Санат аты";
 "category.icon" = "Белгіше";
+"category.chart_color" = "Диаграмма түсі";
+"category.chart_color.hint" = "Шығындар және талдауда көрсетіледі.";
+"category.chart_color.a11y_swatch" = "Диаграмма түсі %@";
+"category.chart_color.a11y_locked" = "Түс %@ — басқа санатта қолданылған.";
+"category.name_taken" = "Осындай атауы бар санат бар.";
+"category.icon_show_more" = "Тағы";
+"category.icon_show_less" = "Жию";
+"category.icon.tap_to_change" = "Белгіше таңдау";
+"category.icon.collapse_hint" = "Толық тізімнен таңдау үшін басыңыз.";
+"category.icon_collapse" = "Жасыру";
+"category.icon.a11y_option" = "Белгіше %@";
+"category.icon.a11y_locked" = "Белгіше %@ бос емес — басқасын таңдаңыз.";
+
+"deleted_category.expense_label" = "Жойылған санат";
+"deleted_category.income_title" = "Жойылған санат";
+
+"add_transaction.quick_categories_hint" = "Жоғарғы 6-сы «Санаттарды өңдеуден» — торды өзгерту үшін сонда реттеңіз.";
 
 "dashboard.income" = "Кіріс";
 "dashboard.expenses" = "Шығындар";
+"dashboard.kpi.savings" = "Жинақ";
+"dashboard.kpi.balance" = "Баланс";
 "dashboard.remaining_balance" = "Қалдық";
 "dashboard.spending_by_category" = "Санат бойынша шығындар";
 "dashboard.empty_categories" = "Әзірге деректер жоқ. Шығындарыңызды саналы түрде бақылай бастаңыз.";
@@ -144,6 +166,7 @@
 "dashboard.edit_income" = "Кірісті өңдеу";
 "dashboard.income_label" = "Кіріс";
 "dashboard.to_goal" = "Мақсатқа: %@";
+"dashboard.schedule_income_note" = "Кесте қойындысынан жалақы жазбалары тек жоспарланған жұмыс ауысымдарынан; жеке оқиғалар оны өзгертпейді.";
 
 "analytics.title" = "Аналитика";
 "analytics.period" = "Кезең";
@@ -154,6 +177,9 @@
 "analytics.income_breakdown" = "Қаражаттың бөлінуі";
 "analytics.no_data" = "Осы кезеңде деректер жоқ";
 "analytics.vs_last_month" = "өткен аймен салыстырғанда";
+"analytics.trend.empty_income" = "Әлі кіріс жоқ";
+"analytics.trend.empty_expenses" = "Әлі шығыстар жоқ";
+"analytics.trend.empty_savings" = "Әлі жинақ жоқ";
 "analytics.vs_prev" = "өткен ай";
 "analytics.insights_title" = "Қорытындылар";
 "analytics.insight.top_category" = "%@ — шығысыңыздың %d%%.";
@@ -169,6 +195,20 @@
 "analytics.pie.expenses" = "Шығындар";
 "analytics.pie.savings" = "Жинақ";
 "analytics.pie.remaining" = "Қалдық";
+"analytics.income_split.title" = "Осы айдағы кірістің бөлінісі";
+"analytics.income_split.of_income" = "кірістің";
+"analytics.income_split.used_of_income" = "%@ / %@";
+"analytics.income_split.summary_spent_of_income" = "%@ жұмсалды, шегі %@";
+"analytics.income_split.summary_allocated_only" = "%@ — шығын мен жинаққа";
+"analytics.income_split.bar_full_equals_income" = "Толық жолақ — осы айдағы кіріс.";
+"analytics.income_split.overflow_hint" = "Шығын мен жинақ кірістен асып кетті; шкала шығынның жалпы сомасына кеңейтілді.";
+"analytics.income_split.no_income_hint" = "Жолақ шығын мен жинақты бір-біріне қатысты көрсетеді. Бос қаражатты кіріс үлесі ретінде көру үшін кіріс қосыңыз.";
+"analytics.income_split.a11y.hint" = "Кіріс бөлінісінің жолағын мен легенданы ашады немесе жабады.";
+"analytics.income_split.a11y.expanded" = "Ашылған";
+"analytics.income_split.a11y.collapsed" = "Жабылған";
+"analytics.income_split.a11y.bar_label" = "%@, %@";
+"analytics.income_split.a11y.segmented_summary" = "Қорытынды: шығын %@, жинақ %@, қалдық %@, кіріске %@.";
+"analytics.income_split.a11y.segmented_summary_no_remaining" = "Шығын %@, жинақ %@; шкала шығын мен жинақ сомасына бейімделген.";
 
 "add_transaction.title" = "Транзакция қосу";
 "add_transaction.expense" = "Шығын";
@@ -194,13 +234,74 @@
 "work.estimated_salary" = "Болжамды жалақы";
 "work.salary_projection" = "Жалақы болжамы";
 "work.no_payments_scheduled" = "Жоспарланған төлемдер жоқ";
-"work.delete_month_confirm" = "%@ үшін барлық жұмыс сағаттарын жойғыңыз келетініне сенімдісіз бе? Бұл әрекетті болдырмау мүмкін емес.";
+"work.delete_month_confirm" = "%@ үшін барлық жоспарланған жұмыс ауысымдарын жою керек пе? Жеке оқиғалар сақталады. Бұл әрекетті болдырмау мүмкін емес.";
 "work.hours_short" = "сағ";
-"work.clear_all" = "Барлық сағаттарды тазалау";
+"work.clear_all" = "Ауысымдарды тазалау";
 "work.clear_all_button" = "Барлығын тазалау";
+
+"schedule.onboarding.title" = "Жалақыны ауысымдардан бақылау";
+"schedule.onboarding.detail" = "Ауысым композерін ашу үшін күнді басыңыз—күнтізбеден шықпай ауысым немесе жеке оқиға қосыңыз. Сағат пен болжам үшін жұмыс қосыңыз.";
+"schedule.forecast_scope_title" = "Болжам қалай жұмыс істейді";
+"schedule.segment.work" = "Ауысым";
+"schedule.segment.event" = "Оқиға";
+"schedule.add_kind_picker_a11y" = "Қосу: жұмыс ауысымы немесе жеке оқиға";
+"schedule.day.items_header" = "Бұл күн";
+"schedule.day.empty" = "Әлі бос — төмендегі қойындыны таңдаңыз.";
+"schedule.work_form_header" = "Жұмыс ауысымы";
+"schedule.work_form_no_jobs" = "Ақылы ауысымдар үшін жұмыс қосыңыз (портфель түймесі).";
+"schedule.event.section_title" = "Жеке оқиға";
+"schedule.event.title_label" = "Атауы";
+"schedule.event.title_placeholder" = "Кездесу, уақыт блогы…";
+"schedule.event.title_rules_hint" = "Кемінде 3 таңба; тек сандардан тұрмауы керек.";
+"schedule.event.start_label" = "Басталуы";
+"schedule.event.end_label" = "Аяқталуы";
+"schedule.event.show_busy" = "«Бос емес» ретінде көрсету (күнтізбеде атауды жасыру)";
+"schedule.event.forecast_footer" = "Кіріс болжамы мен жалақы синхрондауын өзгертпейді.";
+"schedule.event.untitled" = "Оқиға";
+"schedule.busy_placeholder" = "Бос емес";
+"schedule.toolbar.jobs_a11y" = "Жұмыстар мен төлем баптаулары";
+"schedule.projection_based_on_shifts" = "Осы айдағы %lld жоспарланған ауысымға негізделген.";
+"schedule.overlap.title" = "Уақыт қиылысы";
+"schedule.overlap.message" = "Бұл уақыт сол күнгі басқа жазбаға сәйкес келеді.";
+"schedule.overlap.save_anyway" = "Бәрібір сақтау";
+"schedule.a11y.work_shift" = "Жұмыс ауысымы";
+"schedule.a11y.personal_event" = "Жеке оқиға";
+"schedule.a11y.work_count" = "%lld ауысым";
+"schedule.a11y.event_count" = "%lld жеке оқиға";
+"schedule.a11y.open_day_hint" = "Күн мәліметін ашады.";
+"schedule.a11y.add_day_hint" = "Жұмыс ауысымын немесе жеке оқиғаны қосу.";
+"schedule.a11y.day_cell_hint" = "Күн композерін ашады немесе жабады. Жабу үшін сол күнді қайта басыңыз.";
+"schedule.a11y.inspector_open" = "Мәліметтер ашық";
+"schedule.a11y.composer_open" = "Композер ашық";
+"schedule.composer.add_to_day_subtitle" = "Осы күнге қосу";
+"schedule.composer.action_work" = "+ Жұмыс ауысымы";
+"schedule.composer.action_event" = "+ Жеке оқиға";
+"schedule.composer.dismiss_a11y" = "Күн композерін жабу";
+"schedule.composer.dismiss_hint_a11y" = "Композерді жабады және күнтізбеге қайтарады.";
+"schedule.composer.back_collapsed_a11y" = "Жылдам әрекеттерге оралу";
+"schedule.composer.earnings_preview_title" = "Болжамды табыс";
+"schedule.composer.earnings_hours_money" = "%1$.1f сағ · %2$@";
+"schedule.composer.rate_missing" = "Болжамды көру үшін жұмыс баптауларында сағаттық ставка қосыңыз.";
+"schedule.composer.fixed_monthly_hint" = "Тұрақты айлық төлем — ауысым ұзындығы бір ауысым төлемін өзгертпейді.";
+"schedule.composer.stats_sep" = " · ";
+"schedule.composer.entry_count" = "%lld жазба";
+"schedule.composer.adjust_times" = "Уақытты реттеу";
+"schedule.composer.event_add" = "Оқиға қосу";
+"schedule.composer.add_shift" = "Ауысым қосу";
+"schedule.composer.approx_earnings_fragment" = "≈ %@";
+"schedule.inspector.close_a11y" = "Күн мәліметін жабу";
+"schedule.inspector.close_hint_a11y" = "Күнтізбе үстіндегі панельді жинайды.";
+"schedule.inspector.overlay_a11y" = "Күн мәліметтері күнтізбе үстінде көрсетіледі.";
+"schedule.inspector.add_more_a11y" = "Тағы жұмыс ауысымы немесе жеке оқиға қосу";
+"schedule.inspector.moved_here_a11y" = "Күн мәліметтері күнтізбенің астында ашылды.";
+"schedule.item.work_fallback" = "Жұмыс";
+"schedule.summary_forecast_footer" = "Болжам тек жоспарланған ауысымдарды қамтиды, жеке оқиғаларды емес.";
 
 "work_hours.title" = "Жұмыс сағаттары";
 "work_hours.select_job" = "Жұмысты таңдаңыз";
+"work_hours.change_job" = "Жұмысты ауыстыру";
+"work_hours.change_shift" = "Ауысымды ауыстыру";
+"work_hours.add_shift_a11y" = "Ауысым қосу";
 "work_hours.hours_worked" = "Жұмыс істеген сағаттар";
 "work_hours.hrs" = "сағ";
 "work_hours.save" = "Сақтау";
@@ -308,13 +409,20 @@
 "history.apply_range" = "Кезеңді қолдану";
 "history.select_date_range" = "Күн аралығын таңдаңыз";
 
-"edit_categories.title" = "Санаттарды өңдеу";
+"edit_categories.title" = "Санаттар";
 "edit_categories.builtin_not_editable" = "Кірістірілген санаттарды өңдеуге болмайды";
 "edit_categories.builtin" = "Кірістірілген санаттар";
 "edit_categories.no_custom" = "Өз санаттарыңыз әлі жоқ";
 "edit_categories.custom" = "Өз санаттарыңыз";
-"edit_categories.tap_to_edit" = "Өңдеу үшін басыңыз немесе жою үшін сызыңыз";
+"edit_categories.tap_to_edit" = "Өңдеу үшін басыңыз немесе ретін өзгерту үшін сүйреңіз";
+"edit_categories.quick_pick_explanation" = "Құралдар тақтасындағы Өңдеуді басыңыз, содан кейін сүйреп реттеңіз. Тізімнің алғашқы алты элементі «Шығын қосу» экранында көрінеді. Басқа санаттар қолданбаның қалған жерінде қолданылады.";
+"edit_categories.all_categories_header" = "Барлық санаттар";
+"edit_categories.quick_pick_divider_badge" = "ТРАНЗАКЦИЯ ҚОСУ";
+"edit_categories.quick_pick_divider_hint" = "Жоғарыдағы алты санат «Шығын қосу» экранында көрінеді.";
 "edit_category.title" = "Санатты өңдеу";
+"edit_category.delete" = "Санатты жою";
+"edit_category.delete_confirm_title" = "Бұл санатты жоясыз ба?";
+"edit_category.delete_confirm_message" = "Осы санаттағы барлық шығындар жойылады, сомалар баланска қайтарылады. Әрқайсысы тарихта «Жойылған санат» деген атаумен кіріс ретінде де көрінеді.";
 
 "chat.title" = "ЖИ кеңесшісі";
 "chat.thinking" = "Ойлануда...";
