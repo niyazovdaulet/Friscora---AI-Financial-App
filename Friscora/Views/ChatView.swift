@@ -8,9 +8,18 @@
 import SwiftUI
 
 struct ChatView: View {
-    @StateObject private var viewModel = ChatViewModel()
+    @StateObject private var viewModel: ChatViewModel
+    @Binding var referenceMonth: Date
+    let initialQuestion: String?
+    @State private var didSendInitialQuestion = false
     @FocusState private var isInputFocused: Bool
     @Environment(\.dismiss) private var dismiss
+    
+    init(referenceMonth: Binding<Date> = .constant(Date()), initialQuestion: String? = nil) {
+        _referenceMonth = referenceMonth
+        self.initialQuestion = initialQuestion
+        _viewModel = StateObject(wrappedValue: ChatViewModel(referenceMonth: referenceMonth.wrappedValue))
+    }
     
     var body: some View {
         NavigationStack {
@@ -20,6 +29,13 @@ struct ChatView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
+                    Text(String(format: L10n("chat.reference_month_trust"), viewModel.referenceMonthDisplayString))
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
                     // Messages list
                     ScrollViewReader { proxy in
                         ScrollView {
@@ -73,7 +89,7 @@ struct ChatView: View {
                     
                     // Input area
                     HStack(spacing: 12) {
-                        TextField("Ask me anything...", text: $viewModel.inputText, axis: .vertical)
+                        TextField(L10n("chat.input_placeholder"), text: $viewModel.inputText, axis: .vertical)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .background(AppColorTheme.cardBackground.opacity(0.6))
@@ -116,6 +132,15 @@ struct ChatView: View {
                     }
                 }
             }
+            // Keep context aligned with the selected analytics month while chat is open.
+            .onChange(of: referenceMonth) { _, newMonth in
+                viewModel.updateReferenceMonth(newMonth)
+            }
+            .onAppear {
+                guard !didSendInitialQuestion, let question = initialQuestion else { return }
+                didSendInitialQuestion = true
+                viewModel.sendQuestion(question)
+            }
         }
     }
 }
@@ -152,37 +177,53 @@ struct TemplateQuestionsView: View {
     @ObservedObject var viewModel: ChatViewModel
     
     let templateQuestions = [
-        "How can I save more?",
-        "What is the overview of my current financial situation?",
-        "Where am I spending too much?",
-        "How can I reduce my expenses?",
-        "What should I prioritize financially?"
+        L10n("ai.chip.biggest_driver"),
+        L10n("ai.chip.income_vs_outflows"),
+        L10n("ai.chip.savings_rate"),
+        L10n("ai.chip.burn_pace"),
+        L10n("ai.chip.top_three"),
+        L10n("ai.chip.small_purchases"),
+        L10n("ai.chip.mom_comparison"),
+        L10n("ai.chip.goal_progress"),
+        L10n("ai.chip.where_money_goes"),
+        L10n("ai.chip.savings_vs_expenses"),
+        L10n("ai.chip.leftover"),
+        L10n("ai.chip.biggest_change")
     ]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Suggested questions:")
+            Text(L10n("chat.try_asking"))
                 .font(.caption)
                 .foregroundColor(AppColorTheme.textSecondary)
                 .padding(.horizontal)
             
-            ForEach(templateQuestions, id: \.self) { question in
-                Button {
-                    viewModel.sendQuestion(question)
-                } label: {
-                    HStack {
-                        Text(question)
-                            .font(.subheadline)
-                            .foregroundColor(AppColorTheme.textPrimary)
-                        Spacer()
-                        Image(systemName: "arrow.right.circle.fill")
-                            .foregroundColor(AppColorTheme.accent)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.s) {
+                    ForEach(templateQuestions, id: \.self) { question in
+                        Button {
+                            viewModel.sendQuestion(question)
+                        } label: {
+                            Text(question)
+                                .font(.subheadline)
+                                .foregroundColor(AppColorTheme.textPrimary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(
+                                    Capsule()
+                                        .fill(AppColorTheme.cardBackground)
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(AppColorTheme.cardBorder, lineWidth: 1)
+                                        )
+                                )
+                        }
+                        .disabled(viewModel.isLoading)
                     }
-                    .padding()
-                    .background(AppColorTheme.cardBackground)
-                    .cornerRadius(12)
                 }
-                .disabled(viewModel.isLoading)
+                .padding(.horizontal)
             }
         }
         .padding(.horizontal)

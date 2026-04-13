@@ -18,8 +18,22 @@ struct WorkDay: Identifiable, Codable {
     /// When set, overrides the shift's time range for this day only (e.g. worked 10:00–15:00 instead of full shift).
     var customStartMinutesFromMidnight: Int?
     var customEndMinutesFromMidnight: Int?
+    /// Set when this row was created by a bulk apply; kept for undo. Not cleared when the user leaves a pattern.
+    var bulkOperationId: UUID?
+    /// Set when generated from a `WorkPattern`; cleared when the user edits this day in the day composer.
+    var patternId: UUID?
     
-    init(id: UUID = UUID(), date: Date, hoursWorked: Double, jobId: UUID, shiftId: UUID? = nil, customStartMinutesFromMidnight: Int? = nil, customEndMinutesFromMidnight: Int? = nil) {
+    init(
+        id: UUID = UUID(),
+        date: Date,
+        hoursWorked: Double,
+        jobId: UUID,
+        shiftId: UUID? = nil,
+        customStartMinutesFromMidnight: Int? = nil,
+        customEndMinutesFromMidnight: Int? = nil,
+        bulkOperationId: UUID? = nil,
+        patternId: UUID? = nil
+    ) {
         self.id = id
         self.date = date
         self.hoursWorked = hoursWorked
@@ -27,10 +41,13 @@ struct WorkDay: Identifiable, Codable {
         self.shiftId = shiftId
         self.customStartMinutesFromMidnight = customStartMinutesFromMidnight
         self.customEndMinutesFromMidnight = customEndMinutesFromMidnight
+        self.bulkOperationId = bulkOperationId
+        self.patternId = patternId
     }
     
     enum CodingKeys: String, CodingKey {
         case id, date, hoursWorked, jobId, shiftId, customStartMinutesFromMidnight, customEndMinutesFromMidnight
+        case bulkOperationId, patternId
     }
     
     init(from decoder: Decoder) throws {
@@ -42,6 +59,8 @@ struct WorkDay: Identifiable, Codable {
         shiftId = try c.decodeIfPresent(UUID.self, forKey: .shiftId)
         customStartMinutesFromMidnight = try c.decodeIfPresent(Int.self, forKey: .customStartMinutesFromMidnight)
         customEndMinutesFromMidnight = try c.decodeIfPresent(Int.self, forKey: .customEndMinutesFromMidnight)
+        bulkOperationId = try c.decodeIfPresent(UUID.self, forKey: .bulkOperationId)
+        patternId = try c.decodeIfPresent(UUID.self, forKey: .patternId)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -53,6 +72,8 @@ struct WorkDay: Identifiable, Codable {
         try c.encodeIfPresent(shiftId, forKey: .shiftId)
         try c.encodeIfPresent(customStartMinutesFromMidnight, forKey: .customStartMinutesFromMidnight)
         try c.encodeIfPresent(customEndMinutesFromMidnight, forKey: .customEndMinutesFromMidnight)
+        try c.encodeIfPresent(bulkOperationId, forKey: .bulkOperationId)
+        try c.encodeIfPresent(patternId, forKey: .patternId)
     }
     
     /// Display time range for this day: custom times if set, otherwise nil (caller uses shift times).

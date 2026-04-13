@@ -16,6 +16,7 @@ struct FriscoraApp: App {
     }
 
     @StateObject private var appState = AppState()
+    @StateObject private var shareCoordinator = ScheduleShareCoordinator.shared
     @ObservedObject private var authService = AuthenticationService.shared
     @State private var showAuthentication = false
     @State private var hasCheckedAuth = false
@@ -29,6 +30,7 @@ struct FriscoraApp: App {
                 authService: authService
             )
             .environmentObject(appState)
+            .environmentObject(shareCoordinator)
         }
     }
 }
@@ -38,6 +40,7 @@ struct AppContentView: View {
     @Binding var showAuthentication: Bool
     @Binding var hasCheckedAuth: Bool
     @ObservedObject var authService: AuthenticationService
+    @EnvironmentObject private var shareCoordinator: ScheduleShareCoordinator
     @Environment(\.scenePhase) private var scenePhase
     
     var body: some View {
@@ -96,6 +99,18 @@ struct AppContentView: View {
                     SalarySyncService.shared.syncSalaryToIncome()
                 }
             }
+        }
+        .onOpenURL { url in
+            ScheduleShareLogging.trace("App onOpenURL: \(url.absoluteString)")
+            shareCoordinator.handleIncomingURL(url)
+        }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
+            if let webURL = userActivity.webpageURL {
+                ScheduleShareLogging.trace("App onContinueUserActivity(BrowsingWeb): \(webURL.absoluteString)")
+            } else {
+                ScheduleShareLogging.trace("App onContinueUserActivity(BrowsingWeb): webpageURL is nil")
+            }
+            shareCoordinator.handleBrowsingWebActivity(userActivity)
         }
     }
     

@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "UN7Z6PG82D.daukas-personal.Friscora",
+        "paths": ["/schedule/join/*"]
+      }
+    ]
+  }
+}

@@ -43,11 +43,16 @@ struct Shift: Identifiable, Codable, Equatable {
         self.endMinutesFromMidnight = max(0, min(1439, endMinutesFromMidnight))
     }
     
-    /// Duration in hours (e.g. 9:00–17:00 = 8.0). Handles overnight (end < start) as same-day wrap.
-    var durationHours: Double {
+    /// Duration in hours (e.g. 9:00–17:00 = 8.0). Handles overnight (end ≤ start) as next calendar day.
+    static func durationHours(startMinutesFromMidnight: Int, endMinutesFromMidnight: Int) -> Double {
         var diff = endMinutesFromMidnight - startMinutesFromMidnight
         if diff <= 0 { diff += 24 * 60 }
         return Double(diff) / 60.0
+    }
+    
+    /// Duration in hours (e.g. 9:00–17:00 = 8.0). Handles overnight (end ≤ start) as next calendar day.
+    var durationHours: Double {
+        Self.durationHours(startMinutesFromMidnight: startMinutesFromMidnight, endMinutesFromMidnight: endMinutesFromMidnight)
     }
     
     /// Start time as Date components (today, for display).
@@ -61,12 +66,17 @@ struct Shift: Identifiable, Codable, Equatable {
     }
     
     /// Formatted time range for display, e.g. "10:00 AM - 6:00 PM".
-    func timeRangeString(locale: Locale = Locale.current) -> String {
+    static func timeRangeString(startMinutesFromMidnight: Int, endMinutesFromMidnight: Int, locale: Locale) -> String {
         let startDate = dateFromMinutes(startMinutesFromMidnight)
         let endDate = dateFromMinutes(endMinutesFromMidnight)
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "hma", options: 0, locale: locale) ?? "h:mm a"
         return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+    }
+    
+    /// Formatted time range for display, e.g. "10:00 AM - 6:00 PM".
+    func timeRangeString(locale: Locale = Locale.current) -> String {
+        Self.timeRangeString(startMinutesFromMidnight: startMinutesFromMidnight, endMinutesFromMidnight: endMinutesFromMidnight, locale: locale)
     }
 }

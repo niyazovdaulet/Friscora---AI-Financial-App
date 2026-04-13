@@ -110,6 +110,9 @@ struct AppColorTheme {
     /// Warning color (Soft amber)
     static let warning = Color(hex: "E6A23C")
     
+    /// Smart schedule bulk apply: day already has this job’s shift (will be replaced).
+    static let scheduleBulkReplaceHint = warning
+    
     /// Balance highlight color (Sapphire Blue)
     static let balanceHighlight = sapphire
     
@@ -143,8 +146,8 @@ struct AppColorTheme {
     /// Tab bar background
     static let tabBarBackground = deepNavy
     
-    /// Active tab icon
-    static let tabActive = emeraldGreen
+    /// Selected tab icon and label — soft near-white so it reads clearly on deep navy without blue-on-blue against cards and sapphire controls.
+    static let tabActive = Color(hex: "E8EDF3")
     
     /// Inactive tab icon
     static let tabInactive = Color(hex: "5A7A99")
@@ -163,7 +166,13 @@ struct AppColorTheme {
     /// Card border color
     static let cardBorder = layer2Border
     
-    /// Subtle full-screen dim behind the schedule day composer. Prefer this over strong blur/material so the calendar stays contextual.
+    /// Dashboard **Balance** KPI tile background: slightly richer sapphire wash than `cardBackground` so the tile reads as “remaining balance” while keeping `textPrimary` / `textSecondary` legible. The sapphire accent strip uses `balanceIndicator` unchanged.
+    static let kpiBalanceCardBackground = Color(hex: "0E2A52")
+    
+    /// Edge treatment for the Balance KPI (ties into sapphire without competing with the vertical accent).
+    static let kpiBalanceCardBorder = sapphire.opacity(0.22)
+    
+    /// Legacy tint for schedule composer experiments; the live composer uses SwiftUI `Material` in `WorkScheduleView` for the frosted backdrop.
     static let scheduleComposerBackdropDim = Color.black.opacity(0.14)
     
     // MARK: - Text Colors

@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 /// Localized string lookup using the current app language bundle.
 /// Use for any user-facing text so language change applies everywhere.

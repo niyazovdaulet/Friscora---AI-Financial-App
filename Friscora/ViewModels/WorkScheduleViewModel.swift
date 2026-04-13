@@ -24,9 +24,7 @@ class WorkScheduleViewModel: ObservableObject {
     
     /// Calendar with week starting on Monday (used for Work Tab schedule grid).
     var calendar: Calendar {
-        var cal = Calendar.current
-        cal.firstWeekday = 2 // Monday
-        return cal
+        ScheduleSharingScheduleExporter.gridCalendar
     }
     
     struct ProjectedPayment: Identifiable {

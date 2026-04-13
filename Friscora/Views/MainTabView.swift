@@ -13,6 +13,7 @@ struct MainTabView: View {
     @StateObject private var authService = AuthenticationService.shared
     @State private var showingOnboarding = false
     @State private var selectedTab = 0
+    @EnvironmentObject private var shareCoordinator: ScheduleShareCoordinator
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
@@ -75,11 +76,13 @@ struct MainTabView: View {
         .onAppear {
             checkOnboardingStatus()
         }
-        .onChange(of: userProfileService.profile.hasCompletedOnboarding) { hasCompleted in
+        .onChange(of: userProfileService.profile.hasCompletedOnboarding) { _, hasCompleted in
             if !hasCompleted {
                 withAnimation(AppAnimation.sheetPresent) {
                     showingOnboarding = true
                 }
+            } else {
+                shareCoordinator.flushDeferredInviteIfReady()
             }
         }
         .onChange(of: scenePhase) { phase in
@@ -89,6 +92,15 @@ struct MainTabView: View {
         }
         .onChange(of: selectedTab) { _, _ in
             HapticHelper.selection()
+        }
+        .onChange(of: shareCoordinator.shouldOpenScheduleTab) { _, shouldOpen in
+            guard shouldOpen else { return }
+            ScheduleShareLogging.trace("MainTabView: switching to Schedule tab (deep link / invite)")
+            selectedTab = 3
+            shareCoordinator.consumeOpenScheduleFlag()
+        }
+        .onChange(of: authService.isAuthenticated) { _, _ in
+            shareCoordinator.flushDeferredInviteIfReady()
         }
     }
     

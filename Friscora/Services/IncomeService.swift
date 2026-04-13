@@ -59,6 +59,20 @@ class IncomeService: ObservableObject {
         print("   Month Total Income: \(monthTotal) \(UserProfileService.shared.profile.currency)")
         print("─────────────────────────────────────────")
     }
+
+    /// Add many incomes in one save/publish cycle.
+    func addIncomes(_ newIncomes: [Income]) {
+        guard !newIncomes.isEmpty else { return }
+        incomes.append(contentsOf: newIncomes)
+        saveIncomes()
+    }
+
+    /// Removes incomes created from a given statement import (used when deleting the imported PDF).
+    func removeIncomes(withSourceStatementID statementID: UUID) {
+        let before = incomes.count
+        incomes.removeAll { $0.sourceStatementID == statementID }
+        if incomes.count != before { saveIncomes() }
+    }
     
     /// Update an income
     func updateIncome(_ income: Income) {

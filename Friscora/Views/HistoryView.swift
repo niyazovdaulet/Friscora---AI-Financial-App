@@ -596,7 +596,7 @@ struct HistoryActivityRow: View {
                 
                 // Amount
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(formatCurrency(activity.amount))
+                    Text(formatCurrency(for: activity))
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundColor(amountColor)
@@ -667,8 +667,20 @@ struct HistoryActivityRow: View {
         }
     }
     
-    private func formatCurrency(_ amount: Double) -> String {
-        return CurrencyFormatter.format(amount, currencyCode: UserProfileService.shared.profile.currency)
+    private func formatCurrency(for activity: ActivityItem) -> String {
+        switch activity.type {
+        case .expense(let expense):
+            return CurrencyFormatter.format(expense.amount, currencyCode: expense.currency)
+        case .income(let income):
+            return CurrencyFormatter.format(income.amount, currencyCode: income.currency)
+        case .mergedBalance(_, let amount, _):
+            return CurrencyFormatter.format(amount, currencyCode: UserProfileService.shared.profile.currency)
+        case .goalContribution(let goalActivity, _):
+            if let goal = GoalService.shared.goals.first(where: { $0.id == goalActivity.goalId }) {
+                return CurrencyFormatter.format(goalActivity.amount, currencyCode: goal.effectiveCurrency)
+            }
+            return CurrencyFormatter.format(goalActivity.amount, currencyCode: UserProfileService.shared.profile.currency)
+        }
     }
 }
 

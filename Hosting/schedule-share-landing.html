@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Friscora — Shared schedule</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem; max-width: 36rem; line-height: 1.45; color: #111; }
+    a { color: #0a84ff; }
+    .muted { color: #666; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <h1>Open in Friscora</h1>
+  <p>Schedule sharing in Friscora lets two people view each other’s work shifts and personal events <strong>read-only</strong>. It never shares money, transactions, or other financial data.</p>
+  <p><a id="appstore" href="https://apps.apple.com/app/id0000000000">Download Friscora on the App Store</a></p>
+  <p class="muted">If the app is already installed, tap your invite link again — it should open Friscora directly.</p>
+  <script>
+    // Optional fallback for edge cases (custom URL scheme).
+    try {
+      var path = location.pathname || "";
+      var m = path.match(/\/schedule\/join\/([^/?#]+)/);
+      if (m && m[1]) {
+        var token = decodeURIComponent(m[1]);
+        location.href = "friscora://schedule/join/" + encodeURIComponent(token);
+      }
+    } catch (e) {}
+  </script>
+</body>
+</html>

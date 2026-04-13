@@ -25,6 +25,11 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    // Schedule sharing (pairing + exported snapshots). Open for development — restrict before public release.
+    match /schedulePairings/{token} {
+      allow read, write, delete: if true;
+    }
+
     // Block all other access by default
     match /{document=**} {
       allow read, write: if false;

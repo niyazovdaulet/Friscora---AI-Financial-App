@@ -22,6 +22,10 @@ enum AppSpacing {
     static let l: CGFloat = 20
     /// 24pt – spacious (e.g. screen horizontal padding, large section gaps)
     static let xl: CGFloat = 24
+    /// 2pt — thin progress bars, dense separators
+    static let hairline: CGFloat = 2
+    /// 1pt — calendar pattern micro-indicator line at day cell bottom
+    static let patternIndicatorLine: CGFloat = 1
 }
 
 // MARK: - Typography

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 /// Custom category created by user
 struct CustomCategory: Identifiable, Codable {

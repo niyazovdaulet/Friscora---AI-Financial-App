@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 enum LastUsedExpenseCategory {
     private static let categoryKey = "friscora.lastExpenseCategory"

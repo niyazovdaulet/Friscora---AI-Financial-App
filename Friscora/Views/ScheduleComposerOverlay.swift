@@ -19,6 +19,8 @@ struct ScheduleComposerOverlay: View {
     /// Closes the composer entirely (clears selected day in parent).
     var onDismissComposer: () -> Void
     var accessibilityComposerFocused: AccessibilityFocusState<Bool>.Binding
+    /// Multi-day bulk apply from the work form (job + shift must be selected in the form).
+    var onRequestBulkApply: ((UUID, UUID) -> Void)? = nil
     
     @StateObject private var workScheduleService = WorkScheduleService.shared
     @StateObject private var userProfileService = UserProfileService.shared
@@ -59,15 +61,30 @@ struct ScheduleComposerOverlay: View {
     }
     
     private var workRows: [WorkDay] {
-        workScheduleService.workDays(for: date).sorted { lhs, rhs in
-            let n1 = workScheduleService.job(withId: lhs.jobId)?.name ?? ""
-            let n2 = workScheduleService.job(withId: rhs.jobId)?.name ?? ""
-            return n1.localizedCaseInsensitiveCompare(n2) == .orderedAscending
-        }
+        workScheduleService.workDays(for: date)
     }
     
     private var personalRows: [PersonalScheduleEvent] {
         workScheduleService.personalEvents(onSameDayAs: date)
+    }
+
+    private enum ComposerTimelineRow: Identifiable {
+        case work(WorkDay)
+        case personal(PersonalScheduleEvent)
+
+        var id: String {
+            switch self {
+            case .work(let wd): return "work-\(wd.id.uuidString)"
+            case .personal(let ev): return "event-\(ev.id.uuidString)"
+            }
+        }
+    }
+
+    /// Combined day rows (work + personal) sorted by start time.
+    private var timelineRows: [ComposerTimelineRow] {
+        let work = workRows.map(ComposerTimelineRow.work)
+        let personal = personalRows.map(ComposerTimelineRow.personal)
+        return (work + personal).sorted(by: composerTimelineRowComesFirst)
     }
     
     private var dayItemCount: Int {
@@ -153,18 +170,6 @@ struct ScheduleComposerOverlay: View {
                 eventTitleFieldFocused = false
             }
         }
-        .toolbar {
-            if case .event = stage {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button(L10n("common.done")) {
-                        eventTitleFieldFocused = false
-                    }
-                    .fontWeight(.semibold)
-                    .foregroundColor(AppColorTheme.accent)
-                }
-            }
-        }
     }
     
     private var composerTopBar: some View {
@@ -238,13 +243,16 @@ struct ScheduleComposerOverlay: View {
             if dayItemCount > 0 {
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(workRows) { wd in
-                            compactWorkRow(wd)
-                            Divider().background(AppColorTheme.grayDark.opacity(0.2))
-                        }
-                        ForEach(personalRows) { ev in
-                            compactPersonalRow(ev)
-                            Divider().background(AppColorTheme.grayDark.opacity(0.2))
+                        ForEach(Array(timelineRows.enumerated()), id: \.element.id) { index, row in
+                            switch row {
+                            case .work(let wd):
+                                compactWorkRow(wd)
+                            case .personal(let ev):
+                                compactPersonalRow(ev)
+                            }
+                            if index < timelineRows.count - 1 {
+                                Divider().background(AppColorTheme.grayDark.opacity(0.2))
+                            }
                         }
                     }
                 }
@@ -329,33 +337,39 @@ struct ScheduleComposerOverlay: View {
             }
             return String(format: "%.1f %@", wd.hoursWorked, L10n("work.hours_short"))
         }()
-        return Button {
+        return HStack(spacing: 10) {
+            Image(systemName: "briefcase.fill")
+                .foregroundColor(job?.color ?? AppColorTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(AppColorTheme.textSecondary)
+            }
+            Spacer()
+            Button(role: .destructive) {
+                workScheduleService.deleteWorkDay(wd)
+                listRefresh = UUID()
+                HapticHelper.lightImpact()
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(AppColorTheme.negative.opacity(0.92))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n("common.delete"))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture {
             HapticHelper.selection()
             withAnimation(AppAnimation.composerStage) {
                 stage = .work(focusedJobId: wd.jobId)
             }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "briefcase.fill")
-                    .foregroundColor(job?.color ?? AppColorTheme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(AppColorTheme.textPrimary)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundColor(AppColorTheme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(AppColorTheme.textTertiary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
     
     private func compactPersonalRow(_ ev: PersonalScheduleEvent) -> some View {
@@ -364,34 +378,40 @@ struct ScheduleComposerOverlay: View {
             ? busyLabel
             : (ev.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? L10n("schedule.event.untitled") : ev.title)
         let timeText = ev.timeRangeString(locale: LocalizationManager.shared.currentLocale)
-        return Button {
+        return HStack(spacing: 10) {
+            Image(systemName: "calendar")
+                .foregroundColor(AppColorTheme.sapphire)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleText)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                Text(timeText)
+                    .font(.caption)
+                    .foregroundColor(AppColorTheme.textSecondary)
+            }
+            Spacer()
+            Button(role: .destructive) {
+                workScheduleService.deletePersonalEvent(ev)
+                listRefresh = UUID()
+                HapticHelper.lightImpact()
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(AppColorTheme.negative.opacity(0.92))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n("common.delete"))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture {
             HapticHelper.selection()
             loadPersonalForm(from: ev)
             withAnimation(AppAnimation.composerStage) {
                 stage = .event(editingEventId: ev.id)
             }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "calendar")
-                    .foregroundColor(AppColorTheme.sapphire)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(titleText)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(AppColorTheme.textPrimary)
-                    Text(timeText)
-                        .font(.caption)
-                        .foregroundColor(AppColorTheme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(AppColorTheme.textTertiary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
     
     private var expandedWorkContent: some View {
@@ -412,7 +432,8 @@ struct ScheduleComposerOverlay: View {
                             }
                         },
                         focusedJobId: workFormFocusId,
-                        fillsParentChrome: false
+                        fillsParentChrome: false,
+                        onApplyToMoreDays: onRequestBulkApply
                     )
                     .id("\(calendar.startOfDay(for: date).timeIntervalSince1970)-\(workFormStageKey)")
                     .padding(.horizontal, AppSpacing.m)
@@ -606,18 +627,18 @@ struct ScheduleComposerOverlay: View {
     }
     
     private func dayQuickStatsLine(for day: Date) -> String? {
-        let work = workScheduleService.workDays(for: day)
+        let work = workRows
         let events = workScheduleService.personalEvents(onSameDayAs: day)
         let count = work.count + events.count
         guard count > 0 else { return nil }
-        let hours = work.reduce(0) { $0 + $1.hoursWorked }
+        let hours = work.reduce(0) { $0 + effectiveWorkHours(for: $1) }
         let currency = userProfileService.profile.currency
         var hourlyTotal: Double = 0
         var hasHourlyEstimate = false
         for wd in work {
             guard let job = workScheduleService.job(withId: wd.jobId) else { continue }
             if job.paymentType == .hourly, let r = job.hourlyRate, r > 0 {
-                hourlyTotal += wd.hoursWorked * r
+                hourlyTotal += effectiveWorkHours(for: wd) * r
                 hasHourlyEstimate = true
             }
         }
@@ -631,6 +652,53 @@ struct ScheduleComposerOverlay: View {
             parts.append(String(format: L10n("schedule.composer.approx_earnings_fragment"), money))
         }
         return parts.joined(separator: L10n("schedule.composer.stats_sep"))
+    }
+
+    private func effectiveWorkHours(for workDay: WorkDay) -> Double {
+        guard let range = workScheduleService.resolvedDisplayTimeRangeMinutes(for: workDay, calendar: calendar) else {
+            return workDay.hoursWorked
+        }
+        return Shift.durationHours(
+            startMinutesFromMidnight: range.start,
+            endMinutesFromMidnight: range.end
+        )
+    }
+
+    private func composerTimelineRowComesFirst(_ lhs: ComposerTimelineRow, _ rhs: ComposerTimelineRow) -> Bool {
+        let leftStart = timelineStartMinute(for: lhs)
+        let rightStart = timelineStartMinute(for: rhs)
+
+        switch (leftStart, rightStart) {
+        case let (l?, r?) where l != r:
+            return l < r
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        default:
+            return timelineSecondarySortKey(for: lhs).localizedCaseInsensitiveCompare(
+                timelineSecondarySortKey(for: rhs)
+            ) == .orderedAscending
+        }
+    }
+
+    private func timelineStartMinute(for row: ComposerTimelineRow) -> Int? {
+        switch row {
+        case .personal(let ev):
+            return ev.startMinutesFromMidnight
+        case .work(let wd):
+            return workScheduleService.resolvedDisplayTimeRangeMinutes(for: wd, calendar: calendar)?.start
+        }
+    }
+
+    private func timelineSecondarySortKey(for row: ComposerTimelineRow) -> String {
+        switch row {
+        case .personal(let ev):
+            let title = ev.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            return title.isEmpty ? L10n("schedule.event.untitled") : title
+        case .work(let wd):
+            return workScheduleService.job(withId: wd.jobId)?.name ?? ""
+        }
     }
     
     private func formatHoursShort(_ hours: Double) -> String {

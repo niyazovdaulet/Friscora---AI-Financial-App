@@ -25,6 +25,8 @@ class DashboardViewModel: ObservableObject {
     private let userProfileService = UserProfileService.shared
     private let customCategoryService = CustomCategoryService.shared
     private var cancellables = Set<AnyCancellable>()
+    private var lastMonthChangeLogKey: String?
+    private var lastFinancialSummaryLogSignature: String?
     
     private let mergedMonthsKey = "merged_months"
     let calendar = Calendar.current
@@ -152,16 +154,13 @@ class DashboardViewModel: ObservableObject {
         $selectedMonth
             .sink { [weak self] newMonth in
                 guard let self = self else { return }
-                let formatter = DateFormatter()
-                formatter.dateFormat = "MMMM yyyy"
-                print("📅 [MONTH CHANGED]")
-                print("   Selected Month: \(formatter.string(from: newMonth))")
-                print("   Is Current Month: \(self.isCurrentMonth)")
-                print("   Is Past Month: \(self.isPastMonth)")
-                if self.isPastMonth {
-                    print("   Is Merged: \(self.isMonthMerged(newMonth))")
+                let monthLogKey = self.monthChangeLogKey(for: newMonth)
+                if self.lastMonthChangeLogKey != monthLogKey {
+                    self.lastMonthChangeLogKey = monthLogKey
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "MMMM yyyy"
+                    print("📅 [MONTH CHANGED] \(formatter.string(from: newMonth)) | current: \(self.isCurrentMonth) | past: \(self.isPastMonth)")
                 }
-                print("─────────────────────────────────────────")
                 // Use async conversion for month changes too
                 self.updateDataAsync()
             }
@@ -344,29 +343,25 @@ class DashboardViewModel: ObservableObject {
                 categoryBreakdown = selectedSnapshot.categoryTotals
                 activeGoals = activeGoalsList
 
-                // Debug print for financial summary
-                let formatter = DateFormatter()
-                formatter.dateFormat = "MMMM yyyy"
-                print("📊 [FINANCIAL SUMMARY] - \(formatter.string(from: selectedMonth))")
-                print("   Monthly Income: \(String(format: "%.2f", monthlyIncome)) \(currentCurrency)")
-                print("   Total Expenses: \(String(format: "%.2f", totalExpenses)) \(currentCurrency)")
-                print("   Goal Allocations (THIS MONTH): \(String(format: "%.2f", goalAllocations)) \(currentCurrency)")
-                print("   ⚠️ Goal allocations are DEDUCTED from balance (money set aside for goals)")
-                print("   Carryover from Previous Month: \(String(format: "%.2f", carryoverAmount)) \(currentCurrency)")
-                print("   ℹ️ Carryover = Previous Month (Income - Expenses - Goal Allocations)")
-                
-                if isCurrentMonth && mergedBalance > 0 {
-                    print("   ✅ Merged Balance from Past Months: \(String(format: "%.2f", mergedBalance)) \(currentCurrency)")
-                    print("   Merged Months: \(mergedMonths.count)")
-                } else if isPastMonth && !mergedMonths.contains(monthKey(for: selectedMonth)) {
-                    let monthBalance = monthlyIncome - totalExpenses - goalAllocations
-                    print("   ⚠️ This month's balance is NOT merged: \(String(format: "%.2f", monthBalance)) \(currentCurrency)")
+                // Keep debug output compact and avoid duplicate spam from repeated async updates.
+                let signature = financialSummaryLogSignature(
+                    currency: currentCurrency,
+                    mergedBalance: mergedBalance
+                )
+                if lastFinancialSummaryLogSignature != signature {
+                    lastFinancialSummaryLogSignature = signature
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "MMMM yyyy"
+                    print(
+                        "📊 [FINANCIAL SUMMARY] \(formatter.string(from: selectedMonth)) | " +
+                        "Income: \(String(format: "%.2f", monthlyIncome)) \(currentCurrency) | " +
+                        "Expenses: \(String(format: "%.2f", totalExpenses)) \(currentCurrency) | " +
+                        "Goals: \(String(format: "%.2f", goalAllocations)) \(currentCurrency) | " +
+                        "Carryover: \(String(format: "%.2f", carryoverAmount)) \(currentCurrency) | " +
+                        "Merged: \(String(format: "%.2f", mergedBalance)) \(currentCurrency) | " +
+                        "Balance: \(String(format: "%.2f", remainingBalance)) \(currentCurrency)"
+                    )
                 }
-                
-                print("   Remaining Balance: \(String(format: "%.2f", remainingBalance)) \(currentCurrency)")
-                print("   Calculation: Income(\(String(format: "%.2f", monthlyIncome))) + Carryover(\(String(format: "%.2f", carryoverAmount))) + Merged(\(String(format: "%.2f", mergedBalance))) - Expenses(\(String(format: "%.2f", totalExpenses))) - Goals(\(String(format: "%.2f", goalAllocations))) = \(String(format: "%.2f", remainingBalance))")
-                print("   ✅ Goals take money from remaining balance - they are subtracted from available funds")
-                print("─────────────────────────────────────────")
             }
         }
     }
@@ -472,6 +467,25 @@ class DashboardViewModel: ObservableObject {
             goals: totalGoalAllocations,
             categoryTotals: categoryTotals
         )
+    }
+
+    private func monthChangeLogKey(for date: Date) -> String {
+        "\(monthKey(for: date))|\(isCurrentMonth)|\(isPastMonth)|\(isMonthMerged(date))"
+    }
+
+    private func financialSummaryLogSignature(currency: String, mergedBalance: Double) -> String {
+        let month = monthKey(for: selectedMonth)
+        return [
+            month,
+            currency,
+            String(format: "%.2f", monthlyIncome),
+            String(format: "%.2f", totalExpenses),
+            String(format: "%.2f", goalAllocations),
+            String(format: "%.2f", carryoverAmount),
+            String(format: "%.2f", mergedBalance),
+            String(format: "%.2f", remainingBalance),
+            "\(mergedMonths.count)"
+        ].joined(separator: "|")
     }
 }
 

@@ -464,7 +464,7 @@ struct AddExpenseView: View {
     // MARK: - Save Button (Sticky)
     private var saveButton: some View {
         Button {
-            saveTransaction()
+            dismissKeyboardAndSaveTransaction()
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "checkmark.circle.fill")
@@ -488,6 +488,16 @@ struct AddExpenseView: View {
                 AppColorTheme.positive.opacity(0.4),
                 radius: 15, x: 0, y: 8
             )
+        }
+    }
+
+    private func dismissKeyboardAndSaveTransaction() {
+        // Collapse focus first so the keyboard animates out before save feedback.
+        isAmountFocused = false
+        isNoteFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            saveTransaction()
         }
     }
     

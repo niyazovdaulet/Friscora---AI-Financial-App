@@ -31,10 +31,20 @@ class ChatViewModel: ObservableObject {
     private let aiService: AIServiceProtocol
     private let expenseService = ExpenseService.shared
     private let userProfileService = UserProfileService.shared
+    @Published var referenceMonth: Date
     
-    init(aiService: AIServiceProtocol = MockAIService.shared) {
+    var referenceMonthDisplayString: String {
+        LocalizationManager.shared.monthYearString(for: referenceMonth)
+    }
+    
+    init(referenceMonth: Date = Date(), aiService: AIServiceProtocol = MockAIService.shared) {
+        self.referenceMonth = referenceMonth
         self.aiService = aiService
         addWelcomeMessage()
+    }
+    
+    func updateReferenceMonth(_ month: Date) {
+        referenceMonth = month
     }
     
     private func addWelcomeMessage() {
@@ -74,7 +84,8 @@ class ChatViewModel: ObservableObject {
                 userProfile: userProfileService.profile,
                 expenses: expenseService.expenses,
                 incomes: IncomeService.shared.incomes,
-                userQuestion: question
+                userQuestion: question,
+                referenceMonth: referenceMonth
             )
             
             let response = try await aiService.getAdvice(context: context)

@@ -17,6 +17,18 @@ enum ScheduleWorkEarningsPreviewState: Equatable {
 
 /// Form for adding or editing a work shift on a given day. Embedded in the schedule composer or presented standalone via `WorkDayInputView`.
 struct WorkShiftDayForm: View {
+    private enum FormAlert: Identifiable {
+        case overlap
+        case duplicateShift
+
+        var id: Int {
+            switch self {
+            case .overlap: return 1
+            case .duplicateShift: return 2
+            }
+        }
+    }
+
     let date: Date
     @Binding var selectedDate: IdentifiableDate?
     /// When `true`, omits `NavigationStack`, title, toolbar, and sheet detents (parent provides navigation).
@@ -31,6 +43,8 @@ struct WorkShiftDayForm: View {
     var fillsParentChrome: Bool = true
     /// Called when job/shift selection changes so the parent can show an earnings preview.
     var onEarningsPreviewChange: ((ScheduleWorkEarningsPreviewState) -> Void)? = nil
+    /// Opens multi-day bulk apply when job + shift are selected (not custom hours).
+    var onApplyToMoreDays: ((UUID, UUID) -> Void)? = nil
     
     @StateObject private var workScheduleService = WorkScheduleService.shared
     @State private var selectedJobId: UUID? = nil
@@ -39,8 +53,13 @@ struct WorkShiftDayForm: View {
     @State private var showingEditTimeSheet = false
     @State private var editStartMinutes: Int = 9 * 60
     @State private var editEndMinutes: Int = 17 * 60
+    /// Per-day time overrides for the selected shift before the main Save (does not change the job’s shift template).
+    @State private var pendingCustomStartMinutes: Int? = nil
+    @State private var pendingCustomEndMinutes: Int? = nil
+    /// After "Edit time" saves times equal to the shift template, we must clear stored per-day overrides on main Save (pending is nil, so this disambiguates from “inherit existing WorkDay”).
+    @State private var sessionClearedShiftTimeToTemplate = false
     @State private var isCustomHoursSelected = false
-    @State private var showOverlapWarning = false
+    @State private var activeAlert: FormAlert?
     @State private var forceSaveDespiteOverlap = false
     /// When `false`, the job grid is replaced by a compact row so shift + save stay on screen (composer).
     @State private var showFullJobPicker: Bool = true
@@ -87,6 +106,22 @@ struct WorkShiftDayForm: View {
             
             if selectedJobId != nil {
                 shiftSelectionSection
+            }
+            
+            if let applyMore = onApplyToMoreDays,
+               let jid = selectedJobId,
+               let sid = selectedShiftId,
+               !isCustomHoursSelected {
+                Button {
+                    HapticHelper.lightImpact()
+                    applyMore(jid, sid)
+                } label: {
+                    Text(L10n("schedule.bulk.apply_more_days"))
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColorTheme.accent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
             
             if shouldShowActionButtons && !stickyBottomActions {
@@ -144,14 +179,25 @@ struct WorkShiftDayForm: View {
         .sheet(isPresented: $showingEditTimeSheet) {
             editTimeSheet
         }
-        .alert(L10n("schedule.overlap.title"), isPresented: $showOverlapWarning) {
-            Button(L10n("common.cancel"), role: .cancel) {}
-            Button(L10n("schedule.overlap.save_anyway")) {
-                forceSaveDespiteOverlap = true
-                validateAndSaveHours()
+        .alert(item: $activeAlert) { alert in
+            switch alert {
+            case .overlap:
+                return Alert(
+                    title: Text(L10n("schedule.overlap.title")),
+                    message: Text(L10n("schedule.overlap.message")),
+                    primaryButton: .cancel(Text(L10n("common.cancel"))),
+                    secondaryButton: .default(Text(L10n("schedule.overlap.save_anyway"))) {
+                        forceSaveDespiteOverlap = true
+                        validateAndSaveHours()
+                    }
+                )
+            case .duplicateShift:
+                return Alert(
+                    title: Text(L10n("schedule.shift_already_added.title")),
+                    message: Text(L10n("schedule.shift_already_added.message")),
+                    dismissButton: .default(Text(L10n("common.ok")))
+                )
             }
-        } message: {
-            Text(L10n("schedule.overlap.message"))
         }
         .onAppear {
             applyInitialJobSelection()
@@ -168,6 +214,7 @@ struct WorkShiftDayForm: View {
             onEarningsPreviewChange?(.none)
         }
         .onChange(of: focusedJobId) { _, newId in
+            clearPendingShiftTimeOverrides()
             guard let newId, workScheduleService.job(withId: newId) != nil else { return }
             selectedJobId = newId
             if let workDay = existingWorkDays.first(where: { $0.jobId == newId }) {
@@ -185,6 +232,7 @@ struct WorkShiftDayForm: View {
             publishEarningsPreview()
         }
         .onChange(of: selectedJobId) { _, newJobId in
+            clearPendingShiftTimeOverrides()
             if !embeddedInParentNavigation {
                 if newJobId != nil {
                     withAnimation(AppAnimation.workDayExpand) {
@@ -219,6 +267,7 @@ struct WorkShiftDayForm: View {
             publishEarningsPreview()
         }
         .onChange(of: selectedShiftId) { _, _ in
+            clearPendingShiftTimeOverrides()
             if selectedShiftId != nil {
                 withAnimation(AppAnimation.standard) {
                     showFullShiftPicker = false
@@ -282,13 +331,10 @@ struct WorkShiftDayForm: View {
         let shiftLabel: String
         let timeRange: String
         if let shift = selectedShift, !isCustomHoursSelected {
-            hours = shift.durationHours
+            let w = resolvedShiftWindow(for: shift)
+            hours = Shift.durationHours(startMinutesFromMidnight: w.start, endMinutesFromMidnight: w.end)
             shiftLabel = shift.name
-            if let wd = existingWorkDayForSelectedJob, let custom = wd.customTimeRangeString(locale: locale) {
-                timeRange = custom
-            } else {
-                timeRange = shift.timeRangeString(locale: locale)
-            }
+            timeRange = Shift.timeRangeString(startMinutesFromMidnight: w.start, endMinutesFromMidnight: w.end, locale: locale)
         } else if isCustomHoursSelected, let wd = existingWorkDayForSelectedJob {
             hours = wd.hoursWorked
             shiftLabel = L10n("work_hours.custom_hours")
@@ -517,6 +563,36 @@ struct WorkShiftDayForm: View {
         return existingWorkDays.first { $0.jobId == jobId }
     }
     
+    /// Effective start/end minutes for a shift row (pending + per-day overrides apply only when this shift is selected).
+    private func resolvedShiftWindow(for shift: Shift) -> (start: Int, end: Int) {
+        guard shift.id == selectedShiftId else {
+            return (shift.startMinutesFromMidnight, shift.endMinutesFromMidnight)
+        }
+        if sessionClearedShiftTimeToTemplate {
+            return (shift.startMinutesFromMidnight, shift.endMinutesFromMidnight)
+        }
+        if let ps = pendingCustomStartMinutes, let pe = pendingCustomEndMinutes {
+            return (ps, pe)
+        }
+        if let wd = existingWorkDayForSelectedJob, wd.shiftId == shift.id,
+           let cs = wd.customStartMinutesFromMidnight, let ce = wd.customEndMinutesFromMidnight {
+            return (cs, ce)
+        }
+        return (shift.startMinutesFromMidnight, shift.endMinutesFromMidnight)
+    }
+    
+    private func resolvedHoursForSelectedShift() -> Double {
+        guard let shift = selectedShift else { return 0 }
+        let w = resolvedShiftWindow(for: shift)
+        return Shift.durationHours(startMinutesFromMidnight: w.start, endMinutesFromMidnight: w.end)
+    }
+    
+    private func clearPendingShiftTimeOverrides() {
+        pendingCustomStartMinutes = nil
+        pendingCustomEndMinutes = nil
+        sessionClearedShiftTimeToTemplate = false
+    }
+    
     private var hasExistingWorkWithoutShift: Bool {
         guard let jobId = selectedJobId else { return false }
         return existingWorkDays.contains { $0.jobId == jobId && $0.shiftId == nil }
@@ -668,6 +744,8 @@ struct WorkShiftDayForm: View {
             if !isCustomHoursSelected {
                 ForEach(shiftsToShow, id: \.id) { shift in
                     let isSelected = selectedShiftId == shift.id
+                    let rowWindow = resolvedShiftWindow(for: shift)
+                    let rowHours = Shift.durationHours(startMinutesFromMidnight: rowWindow.start, endMinutesFromMidnight: rowWindow.end)
                     Button {
                         if isSelected, showFullShiftPicker {
                             withAnimation(AppAnimation.standard) {
@@ -693,10 +771,10 @@ struct WorkShiftDayForm: View {
                                     .font(.subheadline)
                                     .fontWeight(isSelected ? .semibold : .regular)
                                     .foregroundColor(AppColorTheme.textPrimary)
-                                Text(shift.timeRangeString(locale: LocalizationManager.shared.currentLocale))
+                                Text(Shift.timeRangeString(startMinutesFromMidnight: rowWindow.start, endMinutesFromMidnight: rowWindow.end, locale: LocalizationManager.shared.currentLocale))
                                     .font(.caption)
                                     .foregroundColor(AppColorTheme.textSecondary)
-                                Text(String(format: "%.1f %@", shift.durationHours, L10n("work_hours.hours_unit")))
+                                Text(String(format: "%.1f %@", rowHours, L10n("work_hours.hours_unit")))
                                     .font(.caption2)
                                     .foregroundColor(AppColorTheme.textTertiary)
                             }
@@ -733,16 +811,12 @@ struct WorkShiftDayForm: View {
     @ViewBuilder
     private var shiftExpandedTimeEditLinks: some View {
         if let shift = selectedShift, !isCustomHoursSelected {
-            let workDay = existingWorkDayForSelectedJob
-            let timeRangeText: String = {
-                if let wd = workDay, let custom = wd.customTimeRangeString(locale: LocalizationManager.shared.currentLocale) {
-                    return custom
-                }
-                return shift.timeRangeString(locale: LocalizationManager.shared.currentLocale)
-            }()
+            let locale = LocalizationManager.shared.currentLocale
+            let w = resolvedShiftWindow(for: shift)
+            let timeRangeText = Shift.timeRangeString(startMinutesFromMidnight: w.start, endMinutesFromMidnight: w.end, locale: locale)
             Button {
-                editStartMinutes = workDay?.customStartMinutesFromMidnight ?? shift.startMinutesFromMidnight
-                editEndMinutes = workDay?.customEndMinutesFromMidnight ?? shift.endMinutesFromMidnight
+                editStartMinutes = pendingCustomStartMinutes ?? existingWorkDayForSelectedJob?.customStartMinutesFromMidnight ?? shift.startMinutesFromMidnight
+                editEndMinutes = pendingCustomEndMinutes ?? existingWorkDayForSelectedJob?.customEndMinutesFromMidnight ?? shift.endMinutesFromMidnight
                 showingEditTimeSheet = true
             } label: {
                 HStack(spacing: 6) {
@@ -785,21 +859,13 @@ struct WorkShiftDayForm: View {
     @ViewBuilder
     private var compactSelectedShiftSummary: some View {
         if let job = selectedJob, let shift = selectedShift, !isCustomHoursSelected {
-            let workDay = existingWorkDayForSelectedJob
             let locale = LocalizationManager.shared.currentLocale
-            let timeRangeText: String = {
-                if let wd = workDay, let custom = wd.customTimeRangeString(locale: locale) {
-                    return custom
-                }
-                return shift.timeRangeString(locale: locale)
-            }()
-            let hoursLine: String = {
-                let h = workDay?.hoursWorked ?? shift.durationHours
-                return String(format: "%.1f %@", h, L10n("work_hours.hours_unit"))
-            }()
+            let w = resolvedShiftWindow(for: shift)
+            let timeRangeText = Shift.timeRangeString(startMinutesFromMidnight: w.start, endMinutesFromMidnight: w.end, locale: locale)
+            let hoursLine = String(format: "%.1f %@", resolvedHoursForSelectedShift(), L10n("work_hours.hours_unit"))
             Button {
-                editStartMinutes = workDay?.customStartMinutesFromMidnight ?? shift.startMinutesFromMidnight
-                editEndMinutes = workDay?.customEndMinutesFromMidnight ?? shift.endMinutesFromMidnight
+                editStartMinutes = pendingCustomStartMinutes ?? existingWorkDayForSelectedJob?.customStartMinutesFromMidnight ?? shift.startMinutesFromMidnight
+                editEndMinutes = pendingCustomEndMinutes ?? existingWorkDayForSelectedJob?.customEndMinutesFromMidnight ?? shift.endMinutesFromMidnight
                 showingEditTimeSheet = true
             } label: {
                 HStack(spacing: 12) {
@@ -978,19 +1044,27 @@ struct WorkShiftDayForm: View {
     }
     
     private func saveCustomTimeRange() {
-        guard let jobId = selectedJobId,
-              let shiftId = selectedShiftId,
-              var job = workScheduleService.job(withId: jobId),
-              let shiftIndex = job.shifts.firstIndex(where: { $0.id == shiftId }) else { return }
-        
-        // Update the shift template for the whole job (all days using this shift will show the new times)
-        var updatedShift = job.shifts[shiftIndex]
-        updatedShift.startMinutesFromMidnight = editStartMinutes
-        updatedShift.endMinutesFromMidnight = editEndMinutes
-        job.shifts[shiftIndex] = updatedShift
-        workScheduleService.updateJob(job)
-        
-        // Shift template is updated above. This day's `WorkDay` is written only when the user taps the main Save / Add shift button (same as job/shift picks), not when dismissing the sheet or the composer.
+        if isCustomHoursSelected, var wd = existingWorkDayForSelectedJob {
+            let h = Shift.durationHours(startMinutesFromMidnight: editStartMinutes, endMinutesFromMidnight: editEndMinutes)
+            wd.hoursWorked = h
+            wd.customStartMinutesFromMidnight = editStartMinutes
+            wd.customEndMinutesFromMidnight = editEndMinutes
+            wd.patternId = nil
+            workScheduleService.addOrUpdateWorkDay(wd)
+            HapticHelper.mediumImpact()
+            publishEarningsPreview()
+            return
+        }
+        guard let shift = selectedShift else { return }
+        if editStartMinutes == shift.startMinutesFromMidnight && editEndMinutes == shift.endMinutesFromMidnight {
+            pendingCustomStartMinutes = nil
+            pendingCustomEndMinutes = nil
+            sessionClearedShiftTimeToTemplate = true
+        } else {
+            pendingCustomStartMinutes = editStartMinutes
+            pendingCustomEndMinutes = editEndMinutes
+            sessionClearedShiftTimeToTemplate = false
+        }
         HapticHelper.mediumImpact()
         publishEarningsPreview()
     }
@@ -1036,9 +1110,33 @@ struct WorkShiftDayForm: View {
         var customStart: Int?
         var customEnd: Int?
         
-        if let shift = selectedShift {
+        if let shift = selectedShift, !isCustomHoursSelected {
             shiftId = shift.id
-            hours = shift.durationHours
+            if sessionClearedShiftTimeToTemplate {
+                customStart = nil
+                customEnd = nil
+            } else if let ps = pendingCustomStartMinutes, let pe = pendingCustomEndMinutes {
+                if ps == shift.startMinutesFromMidnight && pe == shift.endMinutesFromMidnight {
+                    customStart = nil
+                    customEnd = nil
+                } else {
+                    customStart = ps
+                    customEnd = pe
+                }
+            } else if let wd = existingWorkDayForSelectedJob, wd.shiftId == shift.id {
+                customStart = wd.customStartMinutesFromMidnight
+                customEnd = wd.customEndMinutesFromMidnight
+            }
+            if let cs = customStart, let ce = customEnd,
+               cs == shift.startMinutesFromMidnight && ce == shift.endMinutesFromMidnight {
+                customStart = nil
+                customEnd = nil
+            }
+            if let cs = customStart, let ce = customEnd {
+                hours = Shift.durationHours(startMinutesFromMidnight: cs, endMinutesFromMidnight: ce)
+            } else {
+                hours = shift.durationHours
+            }
         } else if isCustomHoursSelected, let workDay = existingWorkDayForSelectedJob {
             hours = workDay.hoursWorked
             shiftId = nil
@@ -1048,14 +1146,26 @@ struct WorkShiftDayForm: View {
             return
         }
         
-        let workDay = WorkDay(
+        let toSave = WorkDay(
+            id: existingWorkDayForSelectedJob?.id ?? UUID(),
             date: date,
             hoursWorked: hours,
             jobId: jobId,
             shiftId: shiftId,
             customStartMinutesFromMidnight: customStart,
-            customEndMinutesFromMidnight: customEnd
+            customEndMinutesFromMidnight: customEnd,
+            bulkOperationId: existingWorkDayForSelectedJob?.bulkOperationId,
+            patternId: nil
         )
+
+        if let existing = existingWorkDayForSelectedJob,
+           existing.shiftId == toSave.shiftId,
+           existing.customStartMinutesFromMidnight == toSave.customStartMinutesFromMidnight,
+           existing.customEndMinutesFromMidnight == toSave.customEndMinutesFromMidnight,
+           abs(existing.hoursWorked - toSave.hoursWorked) < 0.0001 {
+            activeAlert = .duplicateShift
+            return
+        }
         
         if !forceSaveDespiteOverlap,
            let interval = absoluteIntervalForSave(jobId: jobId, shiftId: shiftId, customStart: customStart, customEnd: customEnd) {
@@ -1066,13 +1176,14 @@ struct WorkShiftDayForm: View {
                 proposedEnd: interval.end,
                 ignoringWorkDayId: ignoreId
             ) {
-                showOverlapWarning = true
+                activeAlert = .overlap
                 return
             }
         }
         forceSaveDespiteOverlap = false
         
-        workScheduleService.addOrUpdateWorkDay(workDay)
+        workScheduleService.addOrUpdateWorkDay(toSave)
+        clearPendingShiftTimeOverrides()
         
         HapticHelper.mediumImpact()
         publishEarningsPreview()

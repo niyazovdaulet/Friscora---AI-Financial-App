@@ -60,6 +60,20 @@ class ExpenseService: ObservableObject {
         print("   Month Total Expenses: \(monthTotal) \(UserProfileService.shared.profile.currency)")
         print("─────────────────────────────────────────")
     }
+
+    /// Add many expenses in one save/publish cycle.
+    func addExpenses(_ newExpenses: [Expense]) {
+        guard !newExpenses.isEmpty else { return }
+        expenses.append(contentsOf: newExpenses)
+        saveExpenses()
+    }
+
+    /// Removes expenses created from a given statement import (used when deleting the imported PDF).
+    func removeExpenses(withSourceStatementID statementID: UUID) {
+        let before = expenses.count
+        expenses.removeAll { $0.sourceStatementID == statementID }
+        if expenses.count != before { saveExpenses() }
+    }
     
     /// Update an expense
     func updateExpense(_ expense: Expense) {

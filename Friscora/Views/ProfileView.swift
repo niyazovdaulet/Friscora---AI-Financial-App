@@ -100,16 +100,16 @@ struct ProfileView: View {
                     }
 
                     Section(L10n("settings.section.schedule")) {
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: "calendar.badge.clock")
-                                .foregroundColor(AppColorTheme.sapphire)
-                                .frame(width: 24)
-                            Text(L10n("settings.schedule_forecast_footer"))
-                                .font(AppTypography.caption)
-                                .foregroundColor(AppColorTheme.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
+                        NavigationLink {
+                            ScheduleForecastInfoView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "calendar.badge.clock")
+                                    .foregroundColor(AppColorTheme.sapphire)
+                                    .frame(width: 24)
+                                Text(L10n("settings.schedule_forecast_row"))
+                            }
                         }
-                        .listRowBackground(AppColorTheme.cardBackground.opacity(0.5))
                     }
 
                     Section(L10n("settings.data")) {
@@ -224,6 +224,27 @@ struct ProfileView: View {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             SKStoreReviewController.requestReview(in: windowScene)
         }
+    }
+}
+
+// MARK: - Schedule forecast info
+struct ScheduleForecastInfoView: View {
+    var body: some View {
+        ZStack {
+            AppColorTheme.background
+                .ignoresSafeArea()
+            Form {
+                Section {
+                    Text(L10n("settings.schedule_forecast_footer"))
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle(L10n("settings.schedule_forecast_detail_title"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -734,12 +755,15 @@ struct EraseDataView: View {
     }
     
     private func eraseAllData() {
-        // Clear all data
+        // Clear all transactional and planning data used by Dashboard/Analytics/Schedule/Goals.
         ExpenseService.shared.expenses.removeAll()
         IncomeService.shared.incomes.removeAll()
         GoalService.shared.goals.removeAll()
         GoalService.shared.activities.removeAll()
         CustomCategoryService.shared.customCategories.removeAll()
+        WorkScheduleService.shared.workDays.removeAll()
+        WorkScheduleService.shared.jobs.removeAll()
+        WorkScheduleService.shared.personalEvents.removeAll()
         
         // Save empty arrays
         if let encoded = try? JSONEncoder().encode([Expense]()) {
@@ -757,22 +781,58 @@ struct EraseDataView: View {
         if let encoded = try? JSONEncoder().encode([CustomCategory]()) {
             UserDefaults.standard.set(encoded, forKey: "saved_custom_categories")
         }
+        if let encoded = try? JSONEncoder().encode([WorkDay]()) {
+            UserDefaults.standard.set(encoded, forKey: "saved_work_days")
+        }
+        if let encoded = try? JSONEncoder().encode([Job]()) {
+            UserDefaults.standard.set(encoded, forKey: "saved_jobs")
+        }
+        if let encoded = try? JSONEncoder().encode([PersonalScheduleEvent]()) {
+            UserDefaults.standard.set(encoded, forKey: "saved_personal_schedule_events")
+        }
+
+        // Reset schedule sharing persisted invite list.
+        UserDefaults.standard.removeObject(forKey: "schedule_sharing_active_invites_v1")
+        
+        // Reset dashboard/analytics persisted state.
+        UserDefaults.standard.removeObject(forKey: "merged_months")
+        UserDefaults.standard.removeObject(forKey: "friscora_last_analytics_month")
+        UserDefaults.standard.removeObject(forKey: "friscora.dashboard.spendingByCategoryExpanded")
+        UserDefaults.standard.removeObject(forKey: "friscora.dashboard.allocatedSavingsExpanded")
+        
+        // Reset statement import persisted state so imported rows/files are fully removed.
+        UserDefaults.standard.removeObject(forKey: "statement_import_files_v1")
+        UserDefaults.standard.removeObject(forKey: "statement_import_sessions_v1")
+        UserDefaults.standard.removeObject(forKey: "statement_import_category_id_v1")
+        UserDefaults.standard.removeObject(forKey: "statement_import_onboarding_seen_v1")
+        
+        // Reset quick-add category memory and custom category ordering cache.
+        UserDefaults.standard.removeObject(forKey: "friscora.lastExpenseCategory")
+        UserDefaults.standard.removeObject(forKey: "friscora.lastCustomCategoryId")
+        UserDefaults.standard.removeObject(forKey: ExpenseCategoryOrderService.storageKey)
+        
+        // Reset authentication settings state in both profile and dedicated auth service storage.
+        AuthenticationService.shared.deletePasscode()
+        AuthenticationService.shared.setBiometricEnabled(false)
+        AuthenticationService.shared.clearAuthentication()
+        var resetProfile = UserProfileService.shared.profile
+        resetProfile.isAuthenticationEnabled = false
+        UserProfileService.shared.saveProfile(resetProfile)
         
         // Reload services
         ExpenseService.shared.loadExpenses()
         IncomeService.shared.loadIncomes()
         GoalService.shared.loadGoals()
         GoalService.shared.loadActivities()
+        WorkScheduleService.shared.loadWorkDays()
+        WorkScheduleService.shared.loadJobs()
+        WorkScheduleService.shared.loadPersonalEvents()
         CustomCategoryService.shared.customCategories.removeAll()
         if let encoded = try? JSONEncoder().encode([CustomCategory]()) {
             UserDefaults.standard.set(encoded, forKey: "saved_custom_categories")
         }
         CustomCategoryService.shared.loadCategories()
-        UserDefaults.standard.removeObject(forKey: ExpenseCategoryOrderService.storageKey)
         ExpenseCategoryOrderService.shared.resetAfterDataErase(customCategories: [])
-        
-        UserDefaults.standard.removeObject(forKey: "saved_personal_schedule_events")
-        WorkScheduleService.shared.loadPersonalEvents()
         
         dismiss()
     }

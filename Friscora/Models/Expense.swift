@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 /// Expense category enum
 enum ExpenseCategory: String, CaseIterable, Codable {
@@ -92,8 +93,28 @@ struct Expense: Identifiable, Codable {
     var date: Date
     var note: String?
     var currency: String // Currency code when expense was created
+    var sourceType: String
+    var sourceStatementID: UUID?
+    var importBatchID: UUID?
+    var originalImportedDescription: String?
+    var isImported: Bool
+    var importConfidence: Double?
     
-    init(id: UUID = UUID(), amount: Double, category: ExpenseCategory, customCategoryId: UUID? = nil, date: Date, note: String? = nil, currency: String? = nil) {
+    init(
+        id: UUID = UUID(),
+        amount: Double,
+        category: ExpenseCategory,
+        customCategoryId: UUID? = nil,
+        date: Date,
+        note: String? = nil,
+        currency: String? = nil,
+        sourceType: String = "manual",
+        sourceStatementID: UUID? = nil,
+        importBatchID: UUID? = nil,
+        originalImportedDescription: String? = nil,
+        isImported: Bool = false,
+        importConfidence: Double? = nil
+    ) {
         self.id = id
         self.amount = CurrencyFormatter.roundToTwoDecimals(amount)
         self.category = category
@@ -101,10 +122,17 @@ struct Expense: Identifiable, Codable {
         self.date = date
         self.note = note
         self.currency = currency ?? UserProfileService.shared.profile.currency
+        self.sourceType = sourceType
+        self.sourceStatementID = sourceStatementID
+        self.importBatchID = importBatchID
+        self.originalImportedDescription = originalImportedDescription
+        self.isImported = isImported
+        self.importConfidence = importConfidence
     }
     
     enum CodingKeys: String, CodingKey {
         case id, amount, category, customCategoryId, date, note, currency
+        case sourceType, sourceStatementID, importBatchID, originalImportedDescription, isImported, importConfidence
     }
     
     init(from decoder: Decoder) throws {
@@ -116,6 +144,12 @@ struct Expense: Identifiable, Codable {
         date = try c.decode(Date.self, forKey: .date)
         note = try c.decodeIfPresent(String.self, forKey: .note)
         currency = try c.decode(String.self, forKey: .currency)
+        sourceType = try c.decodeIfPresent(String.self, forKey: .sourceType) ?? "manual"
+        sourceStatementID = try c.decodeIfPresent(UUID.self, forKey: .sourceStatementID)
+        importBatchID = try c.decodeIfPresent(UUID.self, forKey: .importBatchID)
+        originalImportedDescription = try c.decodeIfPresent(String.self, forKey: .originalImportedDescription)
+        isImported = try c.decodeIfPresent(Bool.self, forKey: .isImported) ?? false
+        importConfidence = try c.decodeIfPresent(Double.self, forKey: .importConfidence)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -127,6 +161,12 @@ struct Expense: Identifiable, Codable {
         try c.encode(date, forKey: .date)
         try c.encodeIfPresent(note, forKey: .note)
         try c.encode(currency, forKey: .currency)
+        try c.encode(sourceType, forKey: .sourceType)
+        try c.encodeIfPresent(sourceStatementID, forKey: .sourceStatementID)
+        try c.encodeIfPresent(importBatchID, forKey: .importBatchID)
+        try c.encodeIfPresent(originalImportedDescription, forKey: .originalImportedDescription)
+        try c.encode(isImported, forKey: .isImported)
+        try c.encodeIfPresent(importConfidence, forKey: .importConfidence)
     }
     
     /// Get the display name for the category (localized for standard categories)

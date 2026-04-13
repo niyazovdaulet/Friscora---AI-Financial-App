@@ -17,9 +17,10 @@ struct DashboardView: View {
     @StateObject private var workScheduleService = WorkScheduleService.shared
     @Binding var selectedTab: Int
     @State private var isButtonPressed = false
-    @State private var isCategorySectionExpanded = true
+    @AppStorage("friscora.dashboard.spendingByCategoryExpanded") private var isCategorySectionExpanded = true
+    @AppStorage("friscora.dashboard.allocatedSavingsExpanded") private var isAllocatedSavingsExpanded = true
     @State private var showHistoryView = false
-    @State private var showAdviserView = false
+    @State private var showStatementImport = false
     @State private var dashboardEntranceDone = false
     @State private var navigateToGoalsView = false
     
@@ -65,21 +66,22 @@ struct DashboardView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    // AI Adviser button
                     Button {
-                        withAnimation(AppAnimation.sheetPresent) {
-                            showAdviserView = true
-                        }
+                        showStatementImport = true
                     } label: {
-                        Image(systemName: "sparkles")
-                            .font(.title3)
-                            .foregroundColor(AppColorTheme.goldAccent)
-                            .frame(minWidth: 44, minHeight: 44)
+                        HStack(spacing: AppSpacing.xs) {
+                            Image(systemName: "doc.text.viewfinder")
+                                .font(.caption)
+                            Text("Import")
+                                .font(AppTypography.captionMedium)
+                        }
+                        .foregroundColor(AppColorTheme.ctaPrimary)
+                        .padding(.horizontal, AppSpacing.s)
+                        .padding(.vertical, AppSpacing.xs)
+                        .background(Capsule().fill(AppColorTheme.ctaPrimary.opacity(0.15)))
                     }
-                    .accessibilityLabel(L10n("chat.title"))
-                    .accessibilityHint("Double tap to open the AI financial adviser")
+                    .accessibilityLabel("Statement Import")
                 }
-                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
                         // Merge/Unmerge button (only for past months)
@@ -93,13 +95,13 @@ struct DashboardView: View {
                                     Text(viewModel.isMonthMerged(viewModel.selectedMonth) ? L10n("dashboard.unmerge") : L10n("dashboard.merge"))
                                         .font(AppTypography.captionMedium)
                                 }
-                                .foregroundColor(viewModel.isMonthMerged(viewModel.selectedMonth) ? AppColorTheme.negative : AppColorTheme.accent)
+                                .foregroundColor(viewModel.isMonthMerged(viewModel.selectedMonth) ? AppColorTheme.negative : AppColorTheme.ctaPrimary)
                                 .padding(.horizontal, AppSpacing.s)
                                 .padding(.vertical, AppSpacing.xs)
                                 .frame(minHeight: 44)
                                 .background(
                                     Capsule()
-                                        .fill(viewModel.isMonthMerged(viewModel.selectedMonth) ? AppColorTheme.negative.opacity(0.15) : AppColorTheme.accent.opacity(0.15))
+                                        .fill(viewModel.isMonthMerged(viewModel.selectedMonth) ? AppColorTheme.negative.opacity(0.15) : AppColorTheme.ctaPrimary.opacity(0.15))
                                 )
                             }
                             .accessibilityLabel(viewModel.isMonthMerged(viewModel.selectedMonth) ? L10n("dashboard.unmerge") : L10n("dashboard.merge"))
@@ -125,8 +127,9 @@ struct DashboardView: View {
             .fullScreenCover(isPresented: $showHistoryView) {
                 HistoryView()
             }
-            .fullScreenCover(isPresented: $showAdviserView) {
-                ChatView()
+            .sheet(isPresented: $showStatementImport) {
+                StatementImportHomeView()
+                    .presentationCornerRadius(24)
             }
         }
     }
@@ -150,8 +153,10 @@ struct DashboardView: View {
             HStack(spacing: AppSpacing.xs) {
                 Text(viewModel.monthString(for: viewModel.selectedMonth))
                     .font(AppTypography.bodySemibold)
+                    .foregroundColor(AppColorTheme.textPrimary)
                 Image(systemName: "chevron.down")
                     .font(.caption)
+                    .foregroundColor(AppColorTheme.textSecondary)
             }
             .frame(minWidth: 44, minHeight: 44)
         }
@@ -199,7 +204,9 @@ struct DashboardView: View {
                 currencyCode: currency,
                 accentColor: viewModel.remainingBalance >= 0 ? AppColorTheme.balanceIndicator : AppColorTheme.warning,
                 entranceIndex: 3,
-                entranceReady: dashboardEntranceDone
+                entranceReady: dashboardEntranceDone,
+                surfaceBackground: AppColorTheme.kpiBalanceCardBackground,
+                surfaceBorder: AppColorTheme.kpiBalanceCardBorder
             )
         }
     }
@@ -258,18 +265,19 @@ struct DashboardView: View {
     private var goalsSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             HStack {
-                Text(L10n("dashboard.allocated_savings"))
-                    .font(.headline)
-                    .foregroundColor(AppColorTheme.textPrimary)
+                Button {
+                    HapticHelper.lightImpact()
+                    withAnimation(AppAnimation.cardExpand) {
+                        isAllocatedSavingsExpanded.toggle()
+                    }
+                } label: {
+                    Text(L10n("dashboard.allocated_savings"))
+                        .font(.headline)
+                        .foregroundColor(AppColorTheme.textPrimary)
+                }
+                .buttonStyle(.plain)
                 
                 Spacer()
-                
-                if viewModel.goalAllocations > 0 {
-                    Text(formatCurrency(viewModel.goalAllocations))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(AppColorTheme.savingsIndicator)
-                }
                 
                 NavigationLink(destination: GoalsView()) {
                     HStack(spacing: 6) {
@@ -279,60 +287,78 @@ struct DashboardView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(AppColorTheme.savingsIndicator)
+                    .foregroundColor(AppColorTheme.ctaPrimary)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                     .background(
                         Capsule()
-                            .fill(AppColorTheme.savingsIndicator.opacity(0.15))
+                            .fill(AppColorTheme.ctaPrimary.opacity(0.15))
                     )
                 }
                 .buttonStyle(.plain)
+                
+                Button {
+                    HapticHelper.lightImpact()
+                    withAnimation(AppAnimation.cardExpand) {
+                        isAllocatedSavingsExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isAllocatedSavingsExpanded ? "chevron.down" : "chevron.right")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(AppColorTheme.textSecondary)
+                        .frame(minWidth: 32, minHeight: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isAllocatedSavingsExpanded ? L10n("dashboard.allocated_savings_a11y.collapse") : L10n("dashboard.allocated_savings_a11y.expand"))
             }
             
-            if viewModel.activeGoals.isEmpty {
-                EmptyStateView(
-                    icon: "target",
-                    message: L10n("dashboard.no_active_savings"),
-                    actionTitle: L10n("dashboard.create_goal"),
-                    action: { navigateToGoalsView = true },
-                    compact: true
-                )
-                .background(
-                    NavigationLink(destination: GoalsView(), isActive: $navigateToGoalsView) {
-                        EmptyView()
-                    }
-                    .hidden()
-                )
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(viewModel.activeGoals.prefix(3)) { goal in
-                        GoalSummaryCard(goal: goal)
-                    }
-                    
-                    if viewModel.activeGoals.count > 3 {
-                        NavigationLink(destination: GoalsView()) {
-                            HStack {
-                                Text(L10n("dashboard.view_all_goals"))
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
+            if isAllocatedSavingsExpanded {
+                if viewModel.activeGoals.isEmpty {
+                    EmptyStateView(
+                        icon: "target",
+                        message: L10n("dashboard.no_active_savings"),
+                        actionTitle: L10n("dashboard.create_goal"),
+                        action: { navigateToGoalsView = true },
+                        compact: true
+                    )
+                    .background(
+                        NavigationLink(destination: GoalsView(), isActive: $navigateToGoalsView) {
+                            EmptyView()
+                        }
+                        .hidden()
+                    )
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(viewModel.activeGoals.prefix(3)) { goal in
+                            GoalSummaryCard(goal: goal)
+                        }
+                        
+                        if viewModel.activeGoals.count > 3 {
+                            NavigationLink(destination: GoalsView()) {
+                                HStack {
+                                    Text(L10n("dashboard.view_all_goals"))
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                }
+                                .foregroundColor(AppColorTheme.ctaPrimary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(AppColorTheme.layer3Elevated)
+                                )
                             }
-                            .foregroundColor(AppColorTheme.savingsIndicator)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(AppColorTheme.layer3Elevated)
-                            )
                         }
                     }
                 }
             }
         }
-        .padding(AppSpacing.m)
+        .padding(.horizontal, AppSpacing.m)
+        .padding(.vertical, isAllocatedSavingsExpanded ? AppSpacing.m : AppSpacing.s)
         .background(
             RoundedRectangle(cornerRadius: AppRadius.card)
                 .fill(AppColorTheme.cardBackground)
@@ -396,13 +422,13 @@ struct DashboardView: View {
                             Image(systemName: "arrow.right")
                                 .font(.caption2)
                         }
-                        .foregroundColor(AppColorTheme.accent)
+                        .foregroundColor(AppColorTheme.ctaPrimary)
                         .padding(.horizontal, AppSpacing.s)
                         .padding(.vertical, AppSpacing.xs)
                         .frame(minHeight: 44)
                         .background(
                             Capsule()
-                                .fill(AppColorTheme.accent.opacity(0.12))
+                                .fill(AppColorTheme.ctaPrimary.opacity(0.12))
                         )
                     }
                     .accessibilityLabel(L10n("dashboard.view_all"))
@@ -517,6 +543,29 @@ private struct DashboardKPICard: View {
     let accentColor: Color
     let entranceIndex: Int
     let entranceReady: Bool
+    /// Defaults match other KPI tiles; Balance passes sapphire-tinted surfaces.
+    let surfaceBackground: Color
+    let surfaceBorder: Color
+
+    init(
+        title: String,
+        amount: Double,
+        currencyCode: String,
+        accentColor: Color,
+        entranceIndex: Int,
+        entranceReady: Bool,
+        surfaceBackground: Color = AppColorTheme.cardBackground,
+        surfaceBorder: Color = AppColorTheme.cardBorder
+    ) {
+        self.title = title
+        self.amount = amount
+        self.currencyCode = currencyCode
+        self.accentColor = accentColor
+        self.entranceIndex = entranceIndex
+        self.entranceReady = entranceReady
+        self.surfaceBackground = surfaceBackground
+        self.surfaceBorder = surfaceBorder
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -542,10 +591,10 @@ private struct DashboardKPICard: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(AppColorTheme.cardBackground)
+                .fill(surfaceBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppColorTheme.cardBorder, lineWidth: 1)
+                        .stroke(surfaceBorder, lineWidth: 1)
                 )
         )
         .opacity(entranceReady ? 1 : 0)
@@ -808,6 +857,11 @@ struct ActivityRowView: View {
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundColor(AppColorTheme.textPrimary)
+                        } else if case .income(let income) = activity.type, income.isImported, let importedDescription = income.note, !importedDescription.isEmpty {
+                            Text(importedDescription)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(AppColorTheme.textPrimary)
                         } else if case .income(let income) = activity.type, income.source?.isSalary == true {
                             Text(L10n("activity.salary"))
                                 .font(.subheadline)
@@ -821,10 +875,17 @@ struct ActivityRowView: View {
                         }
                     } else {
                         if case .expense(let expense) = activity.type {
-                            Text(expense.categoryName())
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(AppColorTheme.textPrimary)
+                            if expense.isImported, let importedDescription = expense.note, !importedDescription.isEmpty {
+                                Text(importedDescription)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(AppColorTheme.textPrimary)
+                            } else {
+                                Text(expense.categoryName())
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(AppColorTheme.textPrimary)
+                            }
                         }
                     }
                     
@@ -840,7 +901,7 @@ struct ActivityRowView: View {
                     }
                     
                     if case .income(let income) = activity.type, let note = income.note, !note.isEmpty {
-                        Text(note)
+                        Text(income.isImported ? "Imported from statement" : note)
                             .font(.caption)
                             .foregroundColor(AppColorTheme.textTertiary)
                             .lineLimit(1)
@@ -857,7 +918,7 @@ struct ActivityRowView: View {
                 Spacer()
                 
                 // Amount with muted color
-                Text(formatCurrency(activity.amount))
+                Text(formatCurrencyForActivity())
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(amountColor)
@@ -927,8 +988,20 @@ struct ActivityRowView: View {
         }
     }
     
-    private func formatCurrency(_ amount: Double) -> String {
-        return CurrencyFormatter.format(amount, currencyCode: UserProfileService.shared.profile.currency)
+    private func formatCurrencyForActivity() -> String {
+        switch activity.type {
+        case .expense(let expense):
+            return CurrencyFormatter.format(expense.amount, currencyCode: expense.currency)
+        case .income(let income):
+            return CurrencyFormatter.format(income.amount, currencyCode: income.currency)
+        case .mergedBalance(_, let amount, _):
+            return CurrencyFormatter.format(amount, currencyCode: UserProfileService.shared.profile.currency)
+        case .goalContribution(let goalActivity, _):
+            if let goal = GoalService.shared.goals.first(where: { $0.id == goalActivity.goalId }) {
+                return CurrencyFormatter.format(goalActivity.amount, currencyCode: goal.effectiveCurrency)
+            }
+            return CurrencyFormatter.format(goalActivity.amount, currencyCode: UserProfileService.shared.profile.currency)
+        }
     }
 }
 
@@ -951,39 +1024,50 @@ struct EditExpenseView: View {
     
     var body: some View {
         NavigationStack {
-            Form {
-                Section(L10n("common.amount")) {
-                    HStack {
-                        Text(UserProfileService.shared.profile.currency)
-                            .foregroundColor(.secondary)
-                        TextField("0", text: Binding(
-                            get: { CurrencyFormatter.formatAmountForDisplay(amount) },
-                            set: { amount = CurrencyFormatter.stripAmountFormatting($0) }
-                        ))
-                            .keyboardType(.decimalPad)
-                    }
-                }
-                
-                Section(L10n("common.category")) {
-                    Picker(L10n("common.category"), selection: $selectedCategory) {
-                        ForEach(ExpenseCategory.allCases, id: \.self) { category in
-                            HStack {
-                                Text(category.icon)
-                                Text(category.localizedName)
-                            }
-                            .tag(category)
+            ZStack {
+                AppColorTheme.background
+                    .ignoresSafeArea()
+
+                Form {
+                    Section(L10n("common.amount")) {
+                        HStack {
+                            Text(UserProfileService.shared.profile.currency)
+                                .foregroundColor(AppColorTheme.textSecondary)
+                            TextField("0", text: Binding(
+                                get: { CurrencyFormatter.formatAmountForDisplay(amount) },
+                                set: { amount = CurrencyFormatter.stripAmountFormatting($0) }
+                            ))
+                                .keyboardType(.decimalPad)
+                                .foregroundColor(AppColorTheme.textPrimary)
                         }
                     }
+                    
+                    Section(L10n("common.category")) {
+                        Picker(L10n("common.category"), selection: $selectedCategory) {
+                            ForEach(ExpenseCategory.allCases, id: \.self) { category in
+                                HStack {
+                                    Text(category.icon)
+                                    Text(category.localizedName)
+                                }
+                                .tag(category)
+                            }
+                        }
+                    }
+                    
+                    Section(L10n("common.date")) {
+                        DatePicker(L10n("common.date"), selection: $date, displayedComponents: .date)
+                    }
+                    
+                    Section(L10n("common.note")) {
+                        TextField(L10n("add_transaction.add_note_placeholder"), text: $note, axis: .vertical)
+                            .lineLimit(3...6)
+                            .foregroundColor(AppColorTheme.textPrimary)
+                    }
                 }
-                
-                Section(L10n("common.date")) {
-                    DatePicker(L10n("common.date"), selection: $date, displayedComponents: .date)
-                }
-                
-                Section(L10n("common.note")) {
-                    TextField(L10n("add_transaction.add_note_placeholder"), text: $note, axis: .vertical)
-                        .lineLimit(3...6)
-                }
+                .scrollContentBackground(.hidden)
+                .listRowBackground(AppColorTheme.cardBackground)
+                .tint(AppColorTheme.negative)
+                .foregroundStyle(AppColorTheme.textPrimary)
             }
             .dismissKeyboardOnTap()
             .navigationTitle(L10n("dashboard.edit_expense"))
@@ -993,12 +1077,14 @@ struct EditExpenseView: View {
                     Button(L10n("common.cancel")) {
                         dismiss()
                     }
+                    .foregroundStyle(AppColorTheme.textSecondary)
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n("common.save")) {
                         saveExpense()
                     }
+                    .foregroundStyle(AppColorTheme.negative)
                 }
             }
         }
@@ -1011,8 +1097,16 @@ struct EditExpenseView: View {
             id: expense.id,
             amount: expenseAmount,
             category: selectedCategory,
+            customCategoryId: expense.customCategoryId,
             date: date,
-            note: note.isEmpty ? nil : note
+            note: note.isEmpty ? nil : note,
+            currency: expense.currency,
+            sourceType: expense.sourceType,
+            sourceStatementID: expense.sourceStatementID,
+            importBatchID: expense.importBatchID,
+            originalImportedDescription: expense.originalImportedDescription,
+            isImported: expense.isImported,
+            importConfidence: expense.importConfidence
         )
         
         ExpenseService.shared.deleteExpense(expense)
@@ -1038,27 +1132,38 @@ struct EditIncomeView: View {
     
     var body: some View {
         NavigationStack {
-            Form {
-                Section(L10n("common.amount")) {
-                    HStack {
-                        Text(UserProfileService.shared.profile.currency)
-                            .foregroundColor(.secondary)
-                        TextField("0", text: Binding(
-                            get: { CurrencyFormatter.formatAmountForDisplay(amount) },
-                            set: { amount = CurrencyFormatter.stripAmountFormatting($0) }
-                        ))
-                            .keyboardType(.decimalPad)
+            ZStack {
+                AppColorTheme.background
+                    .ignoresSafeArea()
+
+                Form {
+                    Section(L10n("common.amount")) {
+                        HStack {
+                            Text(UserProfileService.shared.profile.currency)
+                                .foregroundColor(AppColorTheme.textSecondary)
+                            TextField("0", text: Binding(
+                                get: { CurrencyFormatter.formatAmountForDisplay(amount) },
+                                set: { amount = CurrencyFormatter.stripAmountFormatting($0) }
+                            ))
+                                .keyboardType(.decimalPad)
+                                .foregroundColor(AppColorTheme.textPrimary)
+                        }
+                    }
+                    
+                    Section(L10n("common.date")) {
+                        AutoDismissDatePicker(selection: $date, displayedComponents: .date)
+                    }
+                    
+                    Section(L10n("common.note")) {
+                        TextField(L10n("add_transaction.add_note_placeholder"), text: $note, axis: .vertical)
+                            .lineLimit(3...6)
+                            .foregroundColor(AppColorTheme.textPrimary)
                     }
                 }
-                
-                Section(L10n("common.date")) {
-                    AutoDismissDatePicker(selection: $date, displayedComponents: .date)
-                }
-                
-                Section(L10n("common.note")) {
-                    TextField(L10n("add_transaction.add_note_placeholder"), text: $note, axis: .vertical)
-                        .lineLimit(3...6)
-                }
+                .scrollContentBackground(.hidden)
+                .listRowBackground(AppColorTheme.cardBackground)
+                .tint(AppColorTheme.positive)
+                .foregroundStyle(AppColorTheme.textPrimary)
             }
             .dismissKeyboardOnTap()
             .navigationTitle(L10n("dashboard.edit_income"))
@@ -1068,12 +1173,14 @@ struct EditIncomeView: View {
                     Button(L10n("common.cancel")) {
                         dismiss()
                     }
+                    .foregroundStyle(AppColorTheme.textSecondary)
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n("common.save")) {
                         saveIncome()
                     }
+                    .foregroundStyle(AppColorTheme.positive)
                 }
             }
         }
@@ -1088,7 +1195,12 @@ struct EditIncomeView: View {
             date: date,
             note: note.isEmpty ? nil : note,
             currency: income.currency,
-            source: income.source
+            source: income.source,
+            sourceStatementID: income.sourceStatementID,
+            importBatchID: income.importBatchID,
+            originalImportedDescription: income.originalImportedDescription,
+            isImported: income.isImported,
+            importConfidence: income.importConfidence
         )
         
         IncomeService.shared.updateIncome(updatedIncome)
