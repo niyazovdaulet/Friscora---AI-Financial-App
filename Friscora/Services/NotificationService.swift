@@ -46,7 +46,9 @@ class NotificationService: ObservableObject {
     func requestAuthorization() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
+                #if DEBUG
                 print("Notification authorization error: \(error.localizedDescription)")
+                #endif
             }
         }
     }
@@ -80,8 +82,8 @@ class NotificationService: ObservableObject {
             let components = calendar.dateComponents([.hour, .minute], from: schedule.morningTime)
             scheduleDailyNotification(
                 identifier: "morning_reminder",
-                title: "Good Morning! 🌅",
-                body: "Start your day by tracking your finances",
+                title: L10n("notifications.morning.title"),
+                body: L10n("notifications.morning.body"),
                 hour: components.hour ?? 10,
                 minute: components.minute ?? 0
             )
@@ -92,8 +94,8 @@ class NotificationService: ObservableObject {
             let components = calendar.dateComponents([.hour, .minute], from: schedule.eveningTime)
             scheduleDailyNotification(
                 identifier: "evening_reminder",
-                title: "Evening Check-in 🌙",
-                body: "Review your spending for today",
+                title: L10n("notifications.evening.title"),
+                body: L10n("notifications.evening.body"),
                 hour: components.hour ?? 22,
                 minute: components.minute ?? 0
             )
@@ -104,8 +106,8 @@ class NotificationService: ObservableObject {
             let components = calendar.dateComponents([.hour, .minute], from: customTime)
             scheduleDailyNotification(
                 identifier: "custom_reminder",
-                title: "Friscora Reminder 📊",
-                body: "Time to check your finances",
+                title: L10n("notifications.custom.title"),
+                body: L10n("notifications.custom.body"),
                 hour: components.hour ?? 12,
                 minute: components.minute ?? 0
             )
@@ -127,7 +129,9 @@ class NotificationService: ObservableObject {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
+                #if DEBUG
                 print("Error scheduling notification: \(error.localizedDescription)")
+                #endif
             }
         }
     }

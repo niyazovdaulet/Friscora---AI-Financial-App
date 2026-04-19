@@ -424,6 +424,7 @@ struct NotificationsSettingsView: View {
 // MARK: - iCloud Sync View
 struct ICloudSyncView: View {
     @StateObject private var syncService = ICloudSyncService.shared
+    @State private var showRemoteMergeBanner = false
     
     private static var relativeDateFormatter: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
@@ -431,36 +432,75 @@ struct ICloudSyncView: View {
         return f
     }()
     
+    private static var syncDetailFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
+    
     var body: some View {
-        Form {
-            Section {
-                HStack {
-                    Text(L10n("settings.icloud_sync_status"))
-                        .foregroundColor(AppColorTheme.textPrimary)
-                    Spacer()
-                    if syncService.isSyncing {
-                        ProgressView()
-                            .scaleEffect(0.9)
-                    } else if let last = syncService.lastSyncedAt {
-                        Text(Self.relativeDateFormatter.localizedString(for: last, relativeTo: Date()))
+        ZStack(alignment: .top) {
+            Form {
+                Section {
+                    HStack(alignment: .top) {
+                        Text(L10n("settings.icloud_sync_status"))
+                            .foregroundColor(AppColorTheme.textPrimary)
+                        Spacer()
+                        if syncService.isSyncing {
+                            ProgressView()
+                                .scaleEffect(0.9)
+                        } else if let last = syncService.lastSyncedAt {
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(Self.relativeDateFormatter.localizedString(for: last, relativeTo: Date()))
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                                Text(String(format: L10n("settings.icloud_last_sync_label"), Self.syncDetailFormatter.string(from: last)))
+                                    .foregroundColor(.secondary)
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                    Button {
+                        HapticHelper.lightImpact()
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            syncService.syncFromCloud()
+                        }
+                        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.5) {
+                            syncService.syncToCloud()
+                        }
+                    } label: {
+                        Label(L10n("settings.icloud_sync_now"), systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .disabled(syncService.isSyncing)
+                } footer: {
+                    VStack(alignment: .leading, spacing: AppSpacing.s) {
+                        Text(L10n("settings.icloud_sync_footer"))
+                        Text(L10n("settings.icloud_last_write_note"))
+                            .font(.caption2)
                             .foregroundColor(.secondary)
-                            .font(.caption)
                     }
                 }
-                Button {
-                    HapticHelper.lightImpact()
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        syncService.syncFromCloud()
-                    }
-                    DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.5) {
-                        syncService.syncToCloud()
-                    }
-                } label: {
-                    Label(L10n("settings.icloud_sync_now"), systemImage: "arrow.triangle.2.circlepath")
-                }
-                .disabled(syncService.isSyncing)
-            } footer: {
-                Text(L10n("settings.icloud_sync_footer"))
+            }
+            if showRemoteMergeBanner {
+                Text(L10n("settings.icloud_updated_banner"))
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .padding(.horizontal, AppSpacing.m)
+                    .padding(.vertical, AppSpacing.s)
+                    .background(AppColorTheme.cardBackground.opacity(0.95))
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
+                    .padding(.top, AppSpacing.s)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(AppAnimation.quickUI, value: showRemoteMergeBanner)
+        .onReceive(NotificationCenter.default.publisher(for: .ICloudSyncDidUpdate)) { _ in
+            showRemoteMergeBanner = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                showRemoteMergeBanner = false
             }
         }
         .navigationTitle(L10n("settings.icloud_sync"))
@@ -889,10 +929,7 @@ struct RateAppView: View {
     }
     
     private func openAppStore() {
-        // Open App Store page directly
-        // Replace "YOUR_APP_STORE_ID" with your actual App Store ID
-        // You can find it in App Store Connect or by searching for your app
-        let appStoreID = "YOUR_APP_STORE_ID" // TODO: Replace with actual App Store ID
+        let appStoreID = AppConstants.appStoreNumericID
         let appStoreURL = "https://apps.apple.com/app/id\(appStoreID)?action=write-review"
         
         if let url = URL(string: appStoreURL) {

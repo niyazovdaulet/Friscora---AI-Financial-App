@@ -49,7 +49,7 @@ class ChatViewModel: ObservableObject {
     
     private func addWelcomeMessage() {
         let welcomeMessage = ChatMessage(
-            content: "Hello! I'm your AI financial adviser. I can help you understand your spending patterns, suggest ways to save money, and provide insights based on your financial data. What would you like to know?",
+            content: L10n("chat.welcome"),
             isUser: false
         )
         messages.append(welcomeMessage)
@@ -95,7 +95,7 @@ class ChatViewModel: ObservableObject {
             isLoading = false
         } catch {
             let errorMessage = ChatMessage(
-                content: "Sorry, I encountered an error. Please try again later.",
+                content: L10n("chat.error.generic"),
                 isUser: false
             )
             messages.append(errorMessage)

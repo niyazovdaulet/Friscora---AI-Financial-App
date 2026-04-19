@@ -72,7 +72,7 @@ struct DashboardView: View {
                         HStack(spacing: AppSpacing.xs) {
                             Image(systemName: "doc.text.viewfinder")
                                 .font(.caption)
-                            Text("Import")
+                            Text(L10n("dashboard.toolbar.import"))
                                 .font(AppTypography.captionMedium)
                         }
                         .foregroundColor(AppColorTheme.ctaPrimary)
@@ -80,7 +80,7 @@ struct DashboardView: View {
                         .padding(.vertical, AppSpacing.xs)
                         .background(Capsule().fill(AppColorTheme.ctaPrimary.opacity(0.15)))
                     }
-                    .accessibilityLabel("Statement Import")
+                    .accessibilityLabel(L10n("dashboard.toolbar.import_a11y"))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {

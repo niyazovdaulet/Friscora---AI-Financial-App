@@ -102,6 +102,7 @@ final class ICloudSyncService: ObservableObject {
             self.userDefaults.set(cloudTimestamp, forKey: syncTimestampLocalKey)
             DispatchQueue.main.async {
                 self.isSyncing = false
+                self.lastSyncedAt = Date()
                 NotificationCenter.default.post(name: .ICloudSyncDidUpdate, object: nil)
             }
         }

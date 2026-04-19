@@ -33,6 +33,9 @@
 "settings.icloud_sync_footer" = "Wydatki, przychody, cele, dane pracy i profil są synchronizowane na urządzeniach z tym samym Apple ID. Ostatni zapis ma pierwszeństwo.";
 "settings.icloud_sync_status" = "Status";
 "settings.icloud_sync_now" = "Synchronizuj teraz";
+"settings.icloud_last_sync_label" = "Ostatnia udana synchronizacja: %@";
+"settings.icloud_last_write_note" = "Jeśli edytujesz na dwóch urządzeniach, najnowszy zapis zastępuje starsze dane dla tych samych wpisów (wygrywa ostatni zapis).";
+"settings.icloud_updated_banner" = "Dane zaktualizowane z iCloud";
 "settings.icloud_sync_capability_hint" = "W Xcode: dodaj możliwość iCloud i zaznacz Key-Value storage.";
 "settings.export_message" = "Eksport danych będzie dostępny w przyszłej wersji.";
 "settings.export_footer" = "Eksportuj dane finansowe do pliku CSV lub JSON.";
@@ -166,6 +169,8 @@
 "dashboard.select_month" = "Wybierz miesiąc";
 "dashboard.merge" = "Połącz";
 "dashboard.unmerge" = "Rozłącz";
+"dashboard.toolbar.import" = "Import";
+"dashboard.toolbar.import_a11y" = "Import wyciągu";
 "dashboard.edit_expense" = "Edytuj wydatek";
 "dashboard.edit_income" = "Edytuj przychód";
 "dashboard.income_label" = "Przychód";
@@ -478,6 +483,8 @@
 "chat.prompt.overspending" = "Na co wydaję za dużo?";
 "chat.prompt.reduce_expenses" = "Jak mogę ograniczyć wydatki?";
 "chat.prompt.priorities" = "Co powinienem priorytetowo potraktować finansowo?";
+"chat.welcome" = "Cześć! Jestem Twoim doradcą finansowym AI. Pomogę zrozumieć wydatki, znaleźć oszczędności i spojrzeć na dane w kontekście. O co chcesz zapytać?";
+"chat.error.generic" = "Przepraszam, wystąpił błąd. Spróbuj ponownie później.";
 "analytics.ai.open_hint" = "Stuknij dwukrotnie, aby otworzyć AI dla tego miesiąca";
 "analytics.ai.explain_category" = "Wyjaśnij tę kategorię";
 "analytics.ai.explain_category_prompt" = "Wyjaśnij moje wydatki w kategorii %@ w tym miesiącu.";
@@ -650,6 +657,12 @@
 "auth.enable" = "Włącz";
 
 "notifications.title" = "Powiadomienia";
+"notifications.morning.title" = "Dzień dobry! 🌅";
+"notifications.morning.body" = "Zacznij dzień od śledzenia finansów";
+"notifications.evening.title" = "Wieczorne sprawdzenie 🌙";
+"notifications.evening.body" = "Przejrzyj dzisiejsze wydatki";
+"notifications.custom.title" = "Przypomnienie Friscora 📊";
+"notifications.custom.body" = "Czas sprawdzić finanse";
 "rate_app.title" = "Oceń aplikację";
 
 "common.ok" = "OK";

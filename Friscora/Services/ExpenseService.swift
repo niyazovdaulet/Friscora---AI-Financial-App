@@ -45,8 +45,7 @@ class ExpenseService: ObservableObject {
     func addExpense(_ expense: Expense) {
         expenses.append(expense)
         saveExpenses()
-        
-        // Debug print
+        #if DEBUG
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         print("💰 [EXPENSE ADDED]")
@@ -59,6 +58,7 @@ class ExpenseService: ObservableObject {
         let monthTotal = totalExpensesForMonth(expense.date)
         print("   Month Total Expenses: \(monthTotal) \(UserProfileService.shared.profile.currency)")
         print("─────────────────────────────────────────")
+        #endif
     }
 
     /// Add many expenses in one save/publish cycle.
@@ -81,8 +81,7 @@ class ExpenseService: ObservableObject {
             let oldExpense = expenses[index]
             expenses[index] = expense
             saveExpenses()
-            
-            // Debug print
+            #if DEBUG
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             print("🔄 [EXPENSE UPDATED]")
@@ -93,6 +92,7 @@ class ExpenseService: ObservableObject {
             let monthTotal = totalExpensesForMonth(expense.date)
             print("   Month Total Expenses: \(monthTotal) \(UserProfileService.shared.profile.currency)")
             print("─────────────────────────────────────────")
+            #endif
         }
     }
     
@@ -100,8 +100,7 @@ class ExpenseService: ObservableObject {
     func deleteExpense(_ expense: Expense) {
         expenses.removeAll { $0.id == expense.id }
         saveExpenses()
-        
-        // Debug print
+        #if DEBUG
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         print("🗑️ [EXPENSE DELETED]")
@@ -111,6 +110,7 @@ class ExpenseService: ObservableObject {
         let monthTotal = totalExpensesForMonth(expense.date)
         print("   Month Total Expenses (after delete): \(monthTotal) \(UserProfileService.shared.profile.currency)")
         print("─────────────────────────────────────────")
+        #endif
     }
     
     /// Get expenses for a specific month

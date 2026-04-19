@@ -34,6 +34,9 @@
 "settings.icloud_sync_footer" = "Your expenses, incomes, goals, work data, and profile sync across devices signed in with the same Apple ID. Last save wins when editing on multiple devices.";
 "settings.icloud_sync_status" = "Status";
 "settings.icloud_sync_now" = "Sync now";
+"settings.icloud_last_sync_label" = "Last successful sync: %@";
+"settings.icloud_last_write_note" = "If you edit on two devices, the latest save replaces older data for the same records (last write wins).";
+"settings.icloud_updated_banner" = "Data updated from iCloud";
 "settings.icloud_sync_capability_hint" = "In Xcode: add the iCloud capability and check Key-Value storage so sync works on device.";
 "settings.export_message" = "Export data feature will be available in a future update.";
 "settings.export_footer" = "Export all your financial data as a CSV or JSON file.";
@@ -175,6 +178,8 @@
 "dashboard.select_month" = "Select month";
 "dashboard.merge" = "Merge";
 "dashboard.unmerge" = "Unmerge";
+"dashboard.toolbar.import" = "Import";
+"dashboard.toolbar.import_a11y" = "Statement Import";
 "dashboard.edit_expense" = "Edit Expense";
 "dashboard.edit_income" = "Edit Income";
 "dashboard.income_label" = "Income";
@@ -497,6 +502,8 @@
 "chat.prompt.overspending" = "Where am I spending too much?";
 "chat.prompt.reduce_expenses" = "How can I reduce my expenses?";
 "chat.prompt.priorities" = "What should I prioritize financially?";
+"chat.welcome" = "Hello! I'm your AI financial adviser. I can help you understand your spending patterns, suggest ways to save money, and provide insights based on your financial data. What would you like to know?";
+"chat.error.generic" = "Sorry, I encountered an error. Please try again later.";
 "analytics.ai.open_hint" = "Double tap to open AI insights for this month";
 "analytics.ai.explain_category" = "Explain this category";
 "analytics.ai.explain_category_prompt" = "Explain my spending in %@ this month.";
@@ -673,6 +680,12 @@
 
 /* Notifications (in-app titles) */
 "notifications.title" = "Notifications";
+"notifications.morning.title" = "Good Morning! 🌅";
+"notifications.morning.body" = "Start your day by tracking your finances";
+"notifications.evening.title" = "Evening Check-in 🌙";
+"notifications.evening.body" = "Review your spending for today";
+"notifications.custom.title" = "Friscora Reminder 📊";
+"notifications.custom.body" = "Time to check your finances";
 "rate_app.title" = "Rate the App";
 
 /* Schedule sharing v2 */

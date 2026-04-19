@@ -34,6 +34,9 @@
 "settings.icloud_sync_footer" = "Шығындар, кірістер, мақсаттар, жұмыс деректері және профиль бір Apple ID бар құрылғыларда синхрондалады.";
 "settings.icloud_sync_status" = "Күйі";
 "settings.icloud_sync_now" = "Қазір синхрондау";
+"settings.icloud_last_sync_label" = "Соңғы сәтті синхрондау: %@";
+"settings.icloud_last_write_note" = "Екі құрылғыда өңдесеңіз, соңғы сақтау бірдей жазбалар үшін ескі деректерді ауыстырады (соңғы сақтау жеңеді).";
+"settings.icloud_updated_banner" = "Деректер iCloud жаңартылды";
 "settings.icloud_sync_capability_hint" = "Xcode-да: iCloud мүмкіндігін қосып, Key-Value storage белгілеңіз.";
 "settings.export_message" = "Деректерді экспорттау жаңартуда қолжетімді болады.";
 "settings.export_footer" = "Қаржылық деректеріңізді CSV немесе JSON ретінде экспорттаңыз.";
@@ -167,6 +170,8 @@
 "dashboard.select_month" = "Айды таңдау";
 "dashboard.merge" = "Біріктіру";
 "dashboard.unmerge" = "Ажырату";
+"dashboard.toolbar.import" = "Импорт";
+"dashboard.toolbar.import_a11y" = "Үзінді импорты";
 "dashboard.edit_expense" = "Шығынды өңдеу";
 "dashboard.edit_income" = "Кірісті өңдеу";
 "dashboard.income_label" = "Кіріс";
@@ -477,6 +482,8 @@
 "chat.prompt.overspending" = "Қай жерде тым көп жұмсап жүрмін?";
 "chat.prompt.reduce_expenses" = "Шығындарды қалай азайта аламын?";
 "chat.prompt.priorities" = "Қаржыда нені бірінші орынға қоюым керек?";
+"chat.welcome" = "Сәлем! Мен сіздің қаржы кеңесшіңізбін (AI). Шығыңызды түсінуге, үнемдеу жолдарын табуға және деректеріңіз бойынша түсінік беруге көмектесемін. Не сұрағыңыз келеді?";
+"chat.error.generic" = "Кешіріңіз, қате орын алды. Кейінірек қайта көріңіз.";
 "analytics.ai.open_hint" = "Осы ай бойынша ЖИ талдауын ашу үшін екі рет түртіңіз";
 "analytics.ai.explain_category" = "Осы санатты түсіндір";
 "analytics.ai.explain_category_prompt" = "Осы айда %@ санатындағы шығындарымды түсіндір.";
@@ -649,6 +656,12 @@
 "auth.enable" = "Қосу";
 
 "notifications.title" = "Хабарландырулар";
+"notifications.morning.title" = "Қайырлы таң! 🌅";
+"notifications.morning.body" = "Күніңізді қаржыны бақылаудан бастаңыз";
+"notifications.evening.title" = "Кешкі тексеру 🌙";
+"notifications.evening.body" = "Бүгінгі шығыңызды қараңыз";
+"notifications.custom.title" = "Friscora ескертуі 📊";
+"notifications.custom.body" = "Қаржыны тексеру уақыты";
 "rate_app.title" = "Қолданбаны бағалау";
 
 "common.ok" = "OK";
