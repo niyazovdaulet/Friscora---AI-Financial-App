@@ -200,6 +200,28 @@ Remaining balance reflects monthly income, carryover, merged past balances, expe
 - **Models** — Prefer `Codable` (and existing coding patterns) for anything persisted.  
 - **New features** — Add models, extend services, introduce a ViewModel when state is non-trivial, then compose SwiftUI views and wire tabs or navigation from existing entry points.  
 
+### Firebase, Firestore rules, and schedule sharing
+
+- **Linked SDKs:** The app uses **Firebase Core**, **Firestore**, and **Firebase Auth** (anonymous sign-in for schedule sharing only). **Firebase Analytics** is not registered in code; if you add it later, update App Store privacy answers and the privacy manifest as required.
+- **Anonymous Auth:** In [Firebase Console](https://console.firebase.google.com) → Authentication → Sign-in method, enable **Anonymous** so clients can read/write `schedulePairings` per `firestore.rules`.
+- **Deploy Firestore rules** (from the repo root, with Firebase CLI installed and logged in):
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+Dry run (compile rules only): `firebase deploy --only firestore:rules --dry-run`
+
+Rules live in `firestore.rules` (referenced from `firebase.json`). After changing rules, deploy before shipping.
+
+### Unit tests (`FriscoraTests/`)
+
+Swift test sources under `FriscoraTests/` (including `AppConstantsTests.swift`) are not wired to an Xcode test target in this repository by default. To run them, add an **iOS Unit Testing Bundle** target in Xcode, depend on the Friscora app, and include the `FriscoraTests` folder.
+
+### App Store ID
+
+Set the **FRISCORA_APP_STORE_ID** build setting (or replace the placeholder in `AppConstants`) before submission so Profile → Open App Store uses a valid numeric ID.
+
 ## 📝 License
 
 This project is licensed under the MIT License—see the LICENSE file.
