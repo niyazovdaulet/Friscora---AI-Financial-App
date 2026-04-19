@@ -19,6 +19,10 @@ enum SchedulePairingFirestoreSync {
     private static let collectionName = "schedulePairings"
     private static let db = Firestore.firestore()
 
+    private static func prepareAccess() async throws {
+        try await ScheduleSharingFirestoreAuth.shared.ensureSignedIn()
+    }
+
     private static let cacheLock = NSLock()
     private static var snapshotCache: [UUID: (inviter: PartnerScheduleSnapshot, recipient: PartnerScheduleSnapshot)] = [:]
 
@@ -46,6 +50,7 @@ enum SchedulePairingFirestoreSync {
         shareItems: [ShareItem],
         scope: ShareScope
     ) async throws {
+        try await prepareAccess()
         let invData = try JSONEncoder().encode(inviterSnapshot)
         guard let invJSON = String(data: invData, encoding: .utf8) else {
             throw SchedulePairingFirestoreSyncError.inviterSnapshotEncodingFailed
@@ -90,6 +95,7 @@ enum SchedulePairingFirestoreSync {
 
     private static func fetchInviterDraftOnce(token: String) async -> InviterFirestoreDraft? {
         do {
+            try await prepareAccess()
             let doc = try await db.collection(collectionName).document(token).getDocument()
             guard doc.exists, let data = doc.data(),
                   let invJSON = data["inviterSnapshotJSON"] as? String,
@@ -117,6 +123,7 @@ enum SchedulePairingFirestoreSync {
         shareItems: [ShareItem],
         scope: ShareScope
     ) async throws {
+        try await prepareAccess()
         let recData = try JSONEncoder().encode(recipientSnapshot)
         guard let recJSON = String(data: recData, encoding: .utf8) else {
             throw SchedulePairingFirestoreSyncError.recipientSnapshotEncodingFailed
@@ -165,6 +172,7 @@ enum SchedulePairingFirestoreSync {
 
     private static func reloadSnapshotCacheFromDocumentOnce(token: String, pairingId: UUID) async -> Bool {
         do {
+            try await prepareAccess()
             let doc = try await db.collection(collectionName).document(token).getDocument()
             guard doc.exists, let data = doc.data(),
                   let invJSON = data["inviterSnapshotJSON"] as? String,
@@ -184,6 +192,7 @@ enum SchedulePairingFirestoreSync {
     /// Inviter: load partnership after recipient merged (document has pairingId + both snapshots).
     static func fetchInviterPartnership(outgoingToken: String) async -> SchedulePartnership? {
         do {
+            try await prepareAccess()
             let doc = try await db.collection(collectionName).document(outgoingToken).getDocument()
             guard doc.exists, let data = doc.data(),
                   let pairingIdStr = data["pairingId"] as? String,
@@ -227,6 +236,7 @@ enum SchedulePairingFirestoreSync {
         role: SchedulePartnershipRole
     ) async -> SchedulePartnership? {
         do {
+            try await prepareAccess()
             let doc = try await db.collection(collectionName).document(inviteToken).getDocument()
             guard doc.exists, let data = doc.data(),
                   let pairingIdStr = data["pairingId"] as? String,
@@ -290,6 +300,7 @@ enum SchedulePairingFirestoreSync {
     static func deletePairingDocument(token: String) async {
         stopListeningForPairedDocumentSnapshotUpdates()
         do {
+            try await prepareAccess()
             try await db.collection(collectionName).document(token).delete()
         } catch {
             ScheduleShareLogging.trace("SchedulePairingFirestoreSync delete failed: \(String(describing: error))")
@@ -298,6 +309,7 @@ enum SchedulePairingFirestoreSync {
 
     /// Writes the current user’s exported schedule into the pairing doc so the partner’s listener picks it up.
     static func publishUpdatedScheduleSnapshot(token: String, role: SchedulePartnershipRole, snapshot: PartnerScheduleSnapshot) async throws {
+        try await prepareAccess()
         let invData = try JSONEncoder().encode(snapshot)
         guard let invJSON = String(data: invData, encoding: .utf8) else {
             throw role == .inviter
@@ -322,6 +334,7 @@ enum SchedulePairingFirestoreSync {
     /// Used when refreshing local pairing: if the document was deleted, the other user stopped sharing.
     static func pairingDocumentStatus(token: String) async -> PairingDocumentStatus {
         do {
+            try await prepareAccess()
             let doc = try await db.collection(collectionName).document(token).getDocument()
             return doc.exists ? .exists : .missing
         } catch {
@@ -338,8 +351,17 @@ enum SchedulePairingFirestoreSync {
         onDocumentRemoved: @escaping @Sendable () -> Void
     ) {
         stopListeningForPairedDocumentSnapshotUpdates()
-        let docRef = db.collection(collectionName).document(token)
-        pairedSnapshotListener = docRef.addSnapshotListener { snapshot, error in
+        Task {
+            do {
+                try await prepareAccess()
+            } catch {
+                #if DEBUG
+                ScheduleShareLogging.trace("SchedulePairingFirestoreSync: auth before paired listener failed \(String(describing: error))")
+                #endif
+                return
+            }
+            let docRef = db.collection(collectionName).document(token)
+            pairedSnapshotListener = docRef.addSnapshotListener { snapshot, error in
             if error != nil { return }
             if snapshot?.exists != true {
                 DispatchQueue.main.async {
@@ -360,6 +382,7 @@ enum SchedulePairingFirestoreSync {
                 }
             }
         }
+        }
     }
 
     static func stopListeningForPairedDocumentSnapshotUpdates() {
@@ -372,15 +395,25 @@ enum SchedulePairingFirestoreSync {
     /// Starts a snapshot listener on `schedulePairings/{token}`. When `pairingId` and `recipientSnapshotJSON` appear, invokes `onPaired` on the main actor.
     static func startListeningForRecipientAcceptance(token: String, onPaired: @escaping @Sendable () -> Void) {
         stopListeningForRecipientAcceptance()
-        let docRef = db.collection(collectionName).document(token)
-        pairingListener = docRef.addSnapshotListener { snapshot, error in
-            if error != nil { return }
-            guard let data = snapshot?.data(),
-                  let pid = data["pairingId"] as? String,
-                  !pid.isEmpty,
-                  data["recipientSnapshotJSON"] is String else { return }
-            DispatchQueue.main.async {
-                onPaired()
+        Task {
+            do {
+                try await prepareAccess()
+            } catch {
+                #if DEBUG
+                ScheduleShareLogging.trace("SchedulePairingFirestoreSync: auth before acceptance listener failed \(String(describing: error))")
+                #endif
+                return
+            }
+            let docRef = db.collection(collectionName).document(token)
+            pairingListener = docRef.addSnapshotListener { snapshot, error in
+                if error != nil { return }
+                guard let data = snapshot?.data(),
+                      let pid = data["pairingId"] as? String,
+                      !pid.isEmpty,
+                      data["recipientSnapshotJSON"] is String else { return }
+                DispatchQueue.main.async {
+                    onPaired()
+                }
             }
         }
     }

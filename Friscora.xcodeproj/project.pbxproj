@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		56BBE70E2F3FAAE5004BB091 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 56BBE70D2F3FAAE5004BB091 /* FirebaseCore */; };
 		56BBE7112F3FAAE5004BB091 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 56BBE7102F3FAAE5004BB091 /* FirebaseFirestore */; };
+		56BBE7122F3FAAE5004BB091 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 56BBE7132F3FAAE5004BB091 /* FirebaseAuth */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +31,7 @@
 			files = (
 				56BBE70E2F3FAAE5004BB091 /* FirebaseCore in Frameworks */,
 				56BBE7112F3FAAE5004BB091 /* FirebaseFirestore in Frameworks */,
+				56BBE7122F3FAAE5004BB091 /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,6 +76,7 @@
 			packageProductDependencies = (
 				56BBE70D2F3FAAE5004BB091 /* FirebaseCore */,
 				56BBE7102F3FAAE5004BB091 /* FirebaseFirestore */,
+				56BBE7132F3FAAE5004BB091 /* FirebaseAuth */,
 			);
 			productName = Friscora;
 			productReference = 564D8F702F0171400081E6D4 /* Friscora.app */;
@@ -277,6 +280,9 @@
 				INFOPLIST_KEY_CFBundleURLTypes_0_CFBundleURLSchemes_0 = friscora;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Friscora uses Face ID to securely authenticate and protect your financial data.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Friscora needs access to your photo library so you can attach a screenshot when sending feedback.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Friscora can remind you to track your finances at times you choose in Settings.";
+				INFOPLIST_KEY_FRISCORA_APP_STORE_ID = "YOUR_APP_STORE_ID";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -320,6 +326,9 @@
 				INFOPLIST_KEY_CFBundleURLTypes_0_CFBundleURLSchemes_0 = friscora;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Friscora uses Face ID to securely authenticate and protect your financial data.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Friscora needs access to your photo library so you can attach a screenshot when sending feedback.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Friscora can remind you to track your finances at times you choose in Settings.";
+				INFOPLIST_KEY_FRISCORA_APP_STORE_ID = "YOUR_APP_STORE_ID";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -391,6 +400,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 56BBE70F2F3FAAE5004BB091 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		56BBE7132F3FAAE5004BB091 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 56BBE70F2F3FAAE5004BB091 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,15 +1,57 @@
 rules_version = '2';
 
 // Friscora – Firestore Security Rules
-// Deploy: firebase deploy --only firestore:rules
+// Deploy: `firebase deploy --only firestore:rules` (see README).
+//
+// Schedule sharing auth model: clients call Firebase **Anonymous Auth** before touching `schedulePairings`.
+// The invite link token remains the capability (128-bit hex document id); rules do not bind docs to UIDs.
+// Tradeoff: any signed-in client who learns a token can read/write that doc — same as “secret URL” semantics,
+// but unauthenticated scraping and naive bulk access are blocked. For stronger guarantees, add a Cloud Function
+// or custom claims tied to pairing records.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Invite tokens are UUIDs without hyphens: 32 lowercase hex chars.
+    function validScheduleTokenId(t) {
+      return t is string && t.size() == 32 && t.matches('^[0-9a-f]+$');
+    }
+
+    function jsonSnapshotField(name, data) {
+      return !(name in data)
+        || (data[name] is string && data[name].size() > 0 && data[name].size() <= 900000);
+    }
+
+    function optionalShortString(data, key, max) {
+      return !(key in data) || (data[key] is string && data[key].size() <= max);
+    }
+
+    function validShareItems(data) {
+      return !('shareItems' in data)
+        || (data.shareItems is list
+            && data.shareItems.size() <= 4
+            && (data.shareItems.size() == 0
+                || data.shareItems.hasOnly(['shifts', 'events'])));
+    }
+
+    function validSchedulePairingPayload(data, token) {
+      return data.keys().size() <= 20
+        && data.get('token', '') == token
+        && jsonSnapshotField('inviterSnapshotJSON', data)
+        && jsonSnapshotField('recipientSnapshotJSON', data)
+        && validShareItems(data)
+        && optionalShortString(data, 'inviterDisplayName', 300)
+        && optionalShortString(data, 'recipientDisplayName', 300)
+        && (!('scope' in data) || (data.scope is string && data.scope in ['currentMonth', 'allMonths']))
+        && (!('status' in data) || (data.status is string && data.status in ['awaiting_recipient', 'paired']))
+        && (!('pairingId' in data) || (data.pairingId is string && data.pairingId.size() <= 40));
+    }
+
     // Feedback collection: allow anyone to create a document (no auth required).
-    // Optional fields: stepsToReproduce, expectedResult, actualResult,
-    // screenshotBase64, type, buildNumber, analyticsMonth – allowed but not required.
-    // No read/update/delete from clients – only your backend or Console should read.
     match /feedback/{feedbackId} {
       allow create: if request.resource.data.subject is string
         && request.resource.data.subject.size() >= 1
@@ -25,12 +67,20 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
-    // Schedule sharing (pairing + exported snapshots). Open for development — restrict before public release.
     match /schedulePairings/{token} {
-      allow read, write, delete: if true;
+      allow read: if signedIn() && validScheduleTokenId(token);
+
+      allow create: if signedIn()
+        && validScheduleTokenId(token)
+        && validSchedulePairingPayload(request.resource.data, token);
+
+      allow update: if signedIn()
+        && validScheduleTokenId(token)
+        && validSchedulePairingPayload(request.resource.data, token);
+
+      allow delete: if signedIn() && validScheduleTokenId(token);
     }
 
-    // Block all other access by default
     match /{document=**} {
       allow read, write: if false;
     }
