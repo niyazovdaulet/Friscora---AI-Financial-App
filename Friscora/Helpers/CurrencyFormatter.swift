@@ -142,20 +142,45 @@ struct CurrencyFormatter {
         return formatter.string(from: NSNumber(value: value)) ?? rawDigits
     }
     
-    /// Strip formatting: comma = grouping (removed), period = decimal (kept at most one).
-    /// e.g. "1,500.99" → "1500.99", "5,000" → "5000".
-    static func stripAmountFormatting(_ input: String) -> String {
-        let noCommas = input.replacingOccurrences(of: ",", with: "")
+    /// Sanitizes editable amount input to digits + one decimal separator.
+    /// - Keeps at most one period, strips non-digit characters, and limits decimal precision.
+    /// - Normalizes `.5` to `0.5` and drops a lone period.
+    static func sanitizeAmountInput(_ input: String, maxFractionDigits: Int = 2) -> String {
+        let normalized = input.replacingOccurrences(of: ",", with: "")
         var result = ""
         var seenDot = false
-        for c in noCommas {
+        var fractionCount = 0
+        
+        for c in normalized {
             if c == "." {
-                if !seenDot { result.append("."); seenDot = true }
+                if !seenDot {
+                    result.append(".")
+                    seenDot = true
+                }
             } else if c.isNumber {
+                if seenDot {
+                    guard fractionCount < maxFractionDigits else { continue }
+                    fractionCount += 1
+                }
                 result.append(c)
             }
         }
+        
+        if result == "." {
+            return ""
+        }
+        
+        if result.hasPrefix(".") {
+            return "0" + result
+        }
+        
         return result
+    }
+    
+    /// Strip formatting: comma = grouping (removed), period = decimal (kept at most one).
+    /// e.g. "1,500.99" → "1500.99", "5,000" → "5000".
+    static func stripAmountFormatting(_ input: String) -> String {
+        sanitizeAmountInput(input)
     }
     
     /// Parse amount from string (comma = grouping, period = decimal); returns nil if invalid.

@@ -7,12 +7,26 @@
 
 import SwiftUI
 import LocalAuthentication
+import os
 
 struct OnboardingView: View {
+    private enum NavigationDirection {
+        case forward
+        case backward
+    }
+    
     @StateObject private var viewModel = OnboardingViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showCurrencyPicker = false
     @State private var showBiometricAlert = false
+    @State private var showSecuritySetup = false
+    @State private var heroPulse = false
+    @State private var showPasscodeMismatchError = false
+    @State private var navigationDirection: NavigationDirection = .forward
+    @State private var passcodeConfirmationTask: Task<Void, Never>?
+    @State private var biometricPromptTask: Task<Void, Never>?
+    
+    private let totalSetupSteps = 4
     
     var body: some View {
         NavigationStack {
@@ -22,38 +36,64 @@ struct OnboardingView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(spacing: 32) {
-                            // Step content
-                            if viewModel.currentStep == 1 {
-                                step1View
-                            } else if viewModel.currentStep == 2 {
-                                step2View
-                            } else if viewModel.currentStep == 3 {
-                                step3View
-                            } else {
-                                step4View
-                            }
-                        }
+                    topBar
                         .padding(.horizontal, 24)
                         .padding(.top, 8)
-                        .padding(.bottom, 100)
+                        .padding(.bottom, 16)
+                    
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            Color.clear
+                                .frame(height: 0)
+                                .id("onboardingTop")
+                            
+                            ZStack {
+                                if viewModel.currentOnboardingStep == .valueSetup {
+                                    step1View
+                                        .transition(stepTransition)
+                                } else if viewModel.currentOnboardingStep == .goal {
+                                    step2View
+                                        .transition(stepTransition)
+                                } else if viewModel.currentOnboardingStep == .notifications {
+                                    step3View
+                                        .transition(stepTransition)
+                                } else if viewModel.currentOnboardingStep == .security {
+                                    step4View
+                                        .transition(stepTransition)
+                                } else {
+                                    completionView
+                                        .transition(stepTransition)
+                                }
+                            }
+                            .animation(AppAnimation.standard, value: viewModel.currentStep)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 8)
+                            .padding(.bottom, 100)
+                        }
+                        .scrollIndicators(.hidden)
+                        .onChange(of: viewModel.currentStep) { _, _ in
+                            withAnimation(AppAnimation.standard) {
+                                proxy.scrollTo("onboardingTop", anchor: .top)
+                            }
+                        }
                     }
                     
                     // Navigation buttons
-                    navigationButtons
-                        .padding(24)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    AppColorTheme.background.opacity(0.95),
-                                    AppColorTheme.background
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
+                    if showsBottomNavigation {
+                        navigationButtons
+                            .padding(24)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        AppColorTheme.background.opacity(0.95),
+                                        AppColorTheme.background
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                                .ignoresSafeArea(edges: .bottom)
                             )
-                            .ignoresSafeArea(edges: .bottom)
-                        )
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -62,56 +102,144 @@ struct OnboardingView: View {
             .alert(String(format: L10n("onboarding.enable_biometric_title"), AuthenticationService.shared.biometricType == .faceID ? L10n("auth.face_id") : L10n("auth.touch_id")), isPresented: $showBiometricAlert) {
                 Button(L10n("onboarding.enable")) {
                     viewModel.biometricEnabled = true
+                    OnboardingLogging.trace("biometric_choice enabled=true")
+                    advanceToCompletionStep()
                 }
                 Button(L10n("onboarding.not_now"), role: .cancel) {
                     viewModel.biometricEnabled = false
+                    OnboardingLogging.trace("biometric_choice enabled=false")
+                    advanceToCompletionStep()
                 }
             } message: {
                 Text(String(format: L10n("onboarding.face_id_message"), AuthenticationService.shared.biometricType == .faceID ? L10n("auth.face_id") : L10n("auth.touch_id")))
             }
+            .onAppear {
+                OnboardingLogging.trace("step_viewed step=\(viewModel.currentStep)")
+            }
+            .onChange(of: viewModel.currentStep) { _, step in
+                OnboardingLogging.trace("step_viewed step=\(step)")
+                if step != OnboardingViewModel.OnboardingStep.security.rawValue {
+                    cancelSecurityTasks()
+                }
+            }
+            .onDisappear {
+                cancelSecurityTasks()
+            }
         }
     }
     
-    // MARK: - Progress Indicator
-    private var progressIndicator: some View {
-        VStack(spacing: 8) {
-            HStack {
-                ForEach(1...4, id: \.self) { step in
-                    Circle()
-                        .fill(step <= viewModel.currentStep ? AppColorTheme.textPrimary : AppColorTheme.textTertiary)
-                        .frame(width: 10, height: 10)
-                        .scaleEffect(step == viewModel.currentStep ? 1.2 : 1.0)
-                        .animation(AppAnimation.standard, value: viewModel.currentStep)
+    private var stepTransition: AnyTransition {
+        switch navigationDirection {
+        case .forward:
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        case .backward:
+            return .asymmetric(
+                insertion: .move(edge: .leading).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            )
+        }
+    }
+    
+    private var showsBottomNavigation: Bool {
+        (1...3).contains(viewModel.currentStep)
+    }
+    
+    private var topBar: some View {
+        HStack(alignment: .center) {
+            progressIndicator
+            Spacer()
+            if (1...3).contains(viewModel.currentStep) {
+                Button {
+                    OnboardingLogging.trace("skip_tapped step=\(viewModel.currentStep)")
+                    viewModel.completeOnboarding()
+                    dismiss()
+                } label: {
+                    Text(L10n("onboarding.global_skip"))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(AppColorTheme.textSecondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.12))
+                        )
                 }
+                .buttonStyle(.plain)
+                .frame(minHeight: 44)
+            } else if viewModel.currentStep == 4 {
+                Button {
+                    cancelSecurityTasks()
+                    navigationDirection = .backward
+                    withAnimation(AppAnimation.standard) {
+                        viewModel.currentStep = 3
+                        showSecuritySetup = false
+                        showPasscodeMismatchError = false
+                    }
+                    OnboardingLogging.trace("back_tapped step=4 via_top_bar")
+                    impactFeedback(style: .light)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(L10n("onboarding.back"))
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.12))
+                    )
+                }
+                .buttonStyle(.plain)
+                .frame(minHeight: 44)
             }
+        }
+    }
+    
+    // MARK: - Progress
+    private var progressIndicator: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(viewModel.currentStep <= totalSetupSteps ? String(format: L10n("onboarding.progress_step_of"), viewModel.currentStep, totalSetupSteps) : L10n("onboarding.progress_completed"))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(AppColorTheme.textSecondary)
             
-            ProgressView(value: Double(viewModel.currentStep), total: 4)
+            ProgressView(value: Double(min(viewModel.currentStep, totalSetupSteps)), total: Double(totalSetupSteps))
                 .progressViewStyle(.linear)
                 .tint(AppColorTheme.accent)
                 .frame(height: 3)
+                .frame(width: 120)
         }
     }
     
     // MARK: - Step 1 View
     private var step1View: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 18) {
             // App Logo
             Image("app-logo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 140, height: 140)
-                .padding(.top, 8)
+                .frame(width: 110, height: 110)
+                .padding(.top, 0)
+                .scaleEffect(heroPulse ? 1.03 : 0.97)
+                .opacity(heroPulse ? 1.0 : 0.85)
+                .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: heroPulse)
             
             VStack(spacing: 8) {
-            Text(L10n("onboarding.welcome"))
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundColor(AppColorTheme.textPrimary)
-            
-            Text(L10n("onboarding.subtitle"))
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(AppColorTheme.textSecondary)
-                .multilineTextAlignment(.center)
+                Text(L10n("onboarding.value_title"))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .multilineTextAlignment(.center)
             }
+            
+            Text(L10n("onboarding.setup_fast"))
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(AppColorTheme.textSecondary)
+                .padding(.top, 2)
             
             // Currency Selection
             VStack(alignment: .leading, spacing: 12) {
@@ -145,28 +273,48 @@ struct OnboardingView: View {
             
             // Income Entry Section
             VStack(alignment: .leading, spacing: 16) {
-                Text(L10n("onboarding.add_income"))
+                Text(L10n("onboarding.main_income"))
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(AppColorTheme.textPrimary)
                 
-                ForEach(Array(viewModel.incomes.enumerated()), id: \.element.id) { index, incomeEntry in
+                if !viewModel.incomes.isEmpty {
                     ModernIncomeEntryView(
                         income: Binding(
-                            get: { viewModel.incomes[index] },
-                            set: { viewModel.incomes[index] = $0 }
+                            get: { viewModel.incomes[0] },
+                            set: { viewModel.incomes[0] = $0 }
                         ),
                         currency: viewModel.selectedCurrency,
-                        canRemove: viewModel.incomes.count > 1,
-                        onRemove: {
-                            withAnimation(AppAnimation.standard) {
-                                viewModel.removeIncome(at: index)
-                            }
-                        }
+                        canRemove: false,
+                        onRemove: {}
                     )
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
+                }
+                
+                if viewModel.incomes.count > 1 {
+                    ForEach(Array(viewModel.incomes.dropFirst())) { incomeEntry in
+                        if let incomeIndex = viewModel.incomes.firstIndex(where: { $0.id == incomeEntry.id }) {
+                            ModernIncomeEntryView(
+                                income: Binding(
+                                    get: { viewModel.incomes[incomeIndex] },
+                                    set: { updatedIncome in
+                                        guard let latestIndex = viewModel.incomes.firstIndex(where: { $0.id == incomeEntry.id }) else { return }
+                                        viewModel.incomes[latestIndex] = updatedIncome
+                                    }
+                                ),
+                                currency: viewModel.selectedCurrency,
+                                canRemove: true,
+                                onRemove: {
+                                    withAnimation(AppAnimation.standard) {
+                                        guard let latestIndex = viewModel.incomes.firstIndex(where: { $0.id == incomeEntry.id }) else { return }
+                                        viewModel.removeIncome(at: latestIndex)
+                                    }
+                                }
+                            )
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
+                        }
+                    }
                 }
                 
                 Button {
@@ -175,29 +323,71 @@ struct OnboardingView: View {
                     }
                 } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 18))
-                        Text(L10n("onboarding.add_another_income"))
-                            .font(.system(size: 16, weight: .semibold))
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 17))
+                        Text(L10n("onboarding.add_another_income_secondary"))
+                            .font(.system(size: 15, weight: .semibold))
                     }
-                    .foregroundColor(AppColorTheme.textPrimary)
+                    .foregroundColor(AppColorTheme.textSecondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 14)
-                            .fill(Color.white.opacity(0.2))
+                            .fill(Color.white.opacity(0.08))
                     )
                 }
             }
-            .padding(.top, 20)
+            .padding(.top, 8)
+            
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L10n("onboarding.value_subtitle"))
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(AppColorTheme.textSecondary)
+                
+                VStack(spacing: 12) {
+                    dashboardPreviewRow(title: L10n("onboarding.preview_income"), value: "\(viewModel.selectedCurrency) 6,000", color: AppColorTheme.positive)
+                    dashboardPreviewRow(title: L10n("onboarding.preview_expenses"), value: "\(viewModel.selectedCurrency) 3,400", color: AppColorTheme.negative)
+                    dashboardPreviewRow(title: L10n("onboarding.preview_remaining"), value: "\(viewModel.selectedCurrency) 2,600", color: AppColorTheme.accent)
+                }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.white.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                )
+            }
         }
         .sheet(isPresented: $showCurrencyPicker) {
             CurrencyPickerSheet(selectedCurrency: $viewModel.selectedCurrency, currencies: viewModel.currencies)
                 .presentationCornerRadius(24)
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
+        .onAppear {
+            restartHeroPulse()
+        }
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                dismissKeyboard()
+            }
+        )
     }
     
+    private func dashboardPreviewRow(title: String, value: String, color: Color) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(AppColorTheme.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(color)
+        }
+    }
+
     // MARK: - Step 2 View
     private var step2View: some View {
         VStack(spacing: 32) {
@@ -217,21 +407,24 @@ struct OnboardingView: View {
                     .frame(width: 100, height: 100)
                     .shadow(color: AppColorTheme.accent.opacity(0.4), radius: 20, x: 0, y: 10)
                 
-            Image(systemName: "target")
+                Image(systemName: "target")
                     .font(.system(size: 50, weight: .bold))
-                .foregroundColor(AppColorTheme.textPrimary)
+                    .foregroundColor(AppColorTheme.textPrimary)
             }
             .padding(.top, 20)
+            .scaleEffect(heroPulse ? 1.03 : 0.97)
+            .opacity(heroPulse ? 1.0 : 0.85)
+            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: heroPulse)
             
             VStack(spacing: 12) {
-            Text(L10n("onboarding.your_goal"))
+                Text(L10n("onboarding.your_goal"))
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundColor(AppColorTheme.textPrimary)
-            
-            Text(L10n("onboarding.goal_question"))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                
+                Text(L10n("onboarding.goal_question"))
                     .font(.system(size: 17, weight: .medium))
                     .foregroundColor(AppColorTheme.textSecondary)
-                .multilineTextAlignment(.center)
+                    .multilineTextAlignment(.center)
             }
             
             // Goal Selection
@@ -239,6 +432,7 @@ struct OnboardingView: View {
                 ForEach(FinancialGoal.allCases, id: \.self) { goal in
                     GoalSelectionButton(
                         goal: goal,
+                        title: localizedGoalLabel(goal),
                         isSelected: viewModel.selectedGoal == goal,
                         action: {
                             withAnimation(AppAnimation.standard) {
@@ -248,8 +442,17 @@ struct OnboardingView: View {
                         }
                     )
                 }
+                
+                Text(goalPersonalizationText)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
             .padding(.top, 20)
+        }
+        .onAppear {
+            restartHeroPulse()
         }
     }
     
@@ -277,6 +480,9 @@ struct OnboardingView: View {
                     .foregroundColor(AppColorTheme.textPrimary)
             }
             .padding(.top, 20)
+            .scaleEffect(heroPulse ? 1.03 : 0.97)
+            .opacity(heroPulse ? 1.0 : 0.85)
+            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: heroPulse)
             
             VStack(spacing: 12) {
                 Text(L10n("onboarding.notifications"))
@@ -291,6 +497,11 @@ struct OnboardingView: View {
             
             // Notifications Section
             VStack(alignment: .leading, spacing: 16) {
+                Text(reminderSummaryText)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .padding(.horizontal, 2)
+                
                 // Morning notification
                 NotificationToggleRow(
                     title: L10n("onboarding.morning_reminder"),
@@ -305,8 +516,7 @@ struct OnboardingView: View {
                     isOn: $viewModel.eveningNotificationEnabled
                 )
                 
-                // Custom notification
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     Toggle(isOn: $viewModel.customNotificationEnabled) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(L10n("onboarding.custom_reminder"))
@@ -335,6 +545,9 @@ struct OnboardingView: View {
             }
             .padding(.top, 20)
         }
+        .onAppear {
+            restartHeroPulse()
+        }
     }
     
     // MARK: - Step 4 View (Authentication)
@@ -361,20 +574,70 @@ struct OnboardingView: View {
                     .foregroundColor(AppColorTheme.textPrimary)
             }
             .padding(.top, 20)
+            .scaleEffect(heroPulse ? 1.03 : 0.97)
+            .opacity(heroPulse ? 1.0 : 0.85)
+            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: heroPulse)
             
             VStack(spacing: 12) {
-                Text(L10n("onboarding.security"))
+                Text(showSecuritySetup ? L10n("onboarding.security") : L10n("onboarding.secure_data_title"))
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundColor(AppColorTheme.textPrimary)
                 
-                Text(L10n("onboarding.security_subtitle"))
+                Text(showSecuritySetup ? L10n("onboarding.security_subtitle") : L10n("onboarding.secure_data_subtitle"))
                     .font(.system(size: 17, weight: .medium))
                     .foregroundColor(AppColorTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
             
             // Authentication Section
-            if viewModel.passcodeStep == 1 {
+            if !showSecuritySetup {
+                VStack(alignment: .leading, spacing: 16) {
+                    Button {
+                        OnboardingLogging.trace("passcode_enable_tapped")
+                        withAnimation(AppAnimation.standard) {
+                            showSecuritySetup = true
+                            showPasscodeMismatchError = false
+                        }
+                    } label: {
+                        Text(L10n("onboarding.enable_protection"))
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(AppColorTheme.textPrimary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                LinearGradient(
+                                    colors: [AppColorTheme.accent, AppColorTheme.accent.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .cornerRadius(16)
+                            .shadow(color: AppColorTheme.accent.opacity(0.4), radius: 15, x: 0, y: 8)
+                    }
+                    .buttonStyle(PressableScaleButtonStyle())
+                    
+                    Button {
+                        OnboardingLogging.trace("passcode_skipped")
+                        cancelSecurityTasks()
+                        viewModel.skipAuthentication()
+                        navigationDirection = .forward
+                        withAnimation(AppAnimation.standard) {
+                            viewModel.currentStep = 5
+                        }
+                    } label: {
+                        Text(L10n("onboarding.security_skip_for_now"))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(AppColorTheme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color.white.opacity(0.1))
+                            )
+                    }
+                    .buttonStyle(PressableScaleButtonStyle())
+                }
+            } else if viewModel.passcodeStep == 1 {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(spacing: 24) {
                         PasscodeEntryView(
@@ -382,21 +645,18 @@ struct OnboardingView: View {
                             title: L10n("onboarding.create_passcode"),
                             subtitle: L10n("onboarding.create_passcode_subtitle")
                         ) {
-                            // Passcode entered, move to confirm
                             if viewModel.passcode.count == 4 {
                                 withAnimation(AppAnimation.standard) {
                                     viewModel.passcodeStep = 2
                                     viewModel.confirmPasscode = ""
+                                    showPasscodeMismatchError = false
                                 }
                             }
                         }
-                        
-                    Button {
-                            viewModel.skipAuthentication()
-                    } label: {
-                            Text(L10n("onboarding.skip"))
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(AppColorTheme.textSecondary)
+                        .onChange(of: viewModel.passcode) { _, newValue in
+                            if !newValue.isEmpty && showPasscodeMismatchError {
+                                showPasscodeMismatchError = false
+                            }
                         }
                     }
                     .padding(20)
@@ -416,21 +676,41 @@ struct OnboardingView: View {
                             // Check if passcodes match
                             if viewModel.confirmPasscode.count == 4 {
                                 if viewModel.passcode == viewModel.confirmPasscode {
-                                    // Show biometric prompt after a delay to ensure view is stable
-                                    Task {
-                                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                                        await MainActor.run {
-                                            showBiometricPrompt()
-                                        }
-                                    }
+                                    schedulePasscodeConfirmationFlow()
                                 } else {
-                                    // Passcodes don't match, reset
+                                    showPasscodeMismatchError = true
+                                    notificationFeedback(type: .error)
                                     viewModel.confirmPasscode = ""
-                                    viewModel.passcode = ""
-                                    viewModel.passcodeStep = 1
                                 }
                             }
                         }
+                        .onChange(of: viewModel.confirmPasscode) { _, newValue in
+                            if !newValue.isEmpty && showPasscodeMismatchError {
+                                showPasscodeMismatchError = false
+                            }
+                        }
+                        
+                        if showPasscodeMismatchError {
+                            Text(L10n("onboarding.passcode_mismatch_error"))
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(AppColorTheme.negative)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .transition(.opacity)
+                        }
+                        
+                        Button {
+                            cancelSecurityTasks()
+                            viewModel.passcode = ""
+                            viewModel.confirmPasscode = ""
+                            viewModel.passcodeStep = 1
+                            showPasscodeMismatchError = false
+                        } label: {
+                            Text(L10n("onboarding.re_enter_passcode"))
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(AppColorTheme.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(20)
                     .background(
@@ -440,116 +720,332 @@ struct OnboardingView: View {
                 }
             }
         }
+        .onAppear {
+            restartHeroPulse()
+        }
     }
     
-    private func showBiometricPrompt() {
-        let authService = AuthenticationService.shared
-        // Check if biometric is available and passcode is set
-        guard authService.isBiometricAvailable,
-              viewModel.passcode.count == 4,
-              viewModel.confirmPasscode.count == 4,
-              viewModel.passcode == viewModel.confirmPasscode else {
-            viewModel.biometricEnabled = false
-            return
+    private var completionView: some View {
+        VStack(spacing: 28) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [AppColorTheme.accent, AppColorTheme.positive],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 110, height: 110)
+                    .shadow(color: AppColorTheme.accent.opacity(0.35), radius: 16, x: 0, y: 8)
+                
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 56, weight: .bold))
+                    .foregroundColor(AppColorTheme.textPrimary)
+            }
+            .padding(.top, 30)
+            .scaleEffect(heroPulse ? 1.03 : 0.97)
+            .opacity(heroPulse ? 1.0 : 0.85)
+            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: heroPulse)
+            
+            VStack(spacing: 10) {
+                Text(L10n("onboarding.completion_title"))
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .minimumScaleFactor(0.8)
+                    .lineLimit(2)
+                Text(L10n("onboarding.completion_subtitle"))
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            VStack(alignment: .leading, spacing: 10) {
+                completionSummaryRow(title: L10n("onboarding.summary_currency"), value: viewModel.selectedCurrency)
+                completionSummaryRow(title: L10n("onboarding.summary_goal"), value: localizedGoalLabel(viewModel.selectedGoal))
+                completionSummaryRow(title: L10n("onboarding.summary_reminders"), value: reminderSummaryText)
+                completionSummaryRow(
+                    title: L10n("onboarding.summary_security"),
+                    value: viewModel.passcode.count == 4 && viewModel.confirmPasscode == viewModel.passcode
+                    ? L10n("onboarding.summary_security_enabled")
+                    : L10n("onboarding.summary_security_skipped")
+                )
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.1))
+            )
+            
+            Button {
+                OnboardingLogging.trace("completion_confirmed")
+                viewModel.completeOnboarding()
+                dismiss()
+            } label: {
+                Text(L10n("onboarding.get_started"))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [AppColorTheme.accent, AppColorTheme.accent.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(16)
+                    .shadow(color: AppColorTheme.accent.opacity(0.4), radius: 15, x: 0, y: 8)
+            }
+            .buttonStyle(PressableScaleButtonStyle())
+            .frame(minHeight: 44)
         }
-        
-        // Show biometric alert after a delay to ensure view is stable
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        .onAppear {
+            restartHeroPulse()
+        }
+    }
+    
+    private func completionSummaryRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(AppColorTheme.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(AppColorTheme.textPrimary)
+                .multilineTextAlignment(.trailing)
+        }
+        .accessibilityElement(children: .combine)
+    }
+    
+    private func continueAfterPasscodeConfirmation() {
+        if canShowBiometricPrompt {
+            scheduleBiometricPrompt()
+        } else {
+            viewModel.biometricEnabled = false
+            advanceToCompletionStep()
+        }
+    }
+    
+    private var canShowBiometricPrompt: Bool {
+        let authService = AuthenticationService.shared
+        return authService.isBiometricAvailable &&
+              viewModel.passcode.count == 4 &&
+              viewModel.confirmPasscode.count == 4 &&
+              viewModel.passcode == viewModel.confirmPasscode
+    }
+    
+    private var isSecuritySetupActive: Bool {
+        viewModel.currentOnboardingStep == .security && showSecuritySetup
+    }
+    
+    private func schedulePasscodeConfirmationFlow() {
+        passcodeConfirmationTask?.cancel()
+        passcodeConfirmationTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
             await MainActor.run {
+                guard isSecuritySetupActive,
+                      viewModel.passcodeStep == 2,
+                      viewModel.passcode.count == 4,
+                      viewModel.confirmPasscode.count == 4,
+                      viewModel.passcode == viewModel.confirmPasscode else {
+                    return
+                }
+                showPasscodeMismatchError = false
+                continueAfterPasscodeConfirmation()
+            }
+        }
+    }
+    
+    private func scheduleBiometricPrompt() {
+        biometricPromptTask?.cancel()
+        biometricPromptTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard isSecuritySetupActive, canShowBiometricPrompt else { return }
                 showBiometricAlert = true
             }
         }
     }
     
+    private func cancelSecurityTasks() {
+        passcodeConfirmationTask?.cancel()
+        passcodeConfirmationTask = nil
+        biometricPromptTask?.cancel()
+        biometricPromptTask = nil
+        showBiometricAlert = false
+    }
+    
+    private func restartHeroPulse() {
+        heroPulse = false
+        DispatchQueue.main.async {
+            heroPulse = true
+        }
+    }
+    
+    private func advanceToCompletionStep() {
+        navigationDirection = .forward
+        withAnimation(AppAnimation.standard) {
+            viewModel.currentStep = 5
+        }
+    }
+    
     // MARK: - Navigation Buttons
     private var navigationButtons: some View {
-        HStack(spacing: 12) {
-            if viewModel.currentStep > 1 {
-                Button {
-                    withAnimation(AppAnimation.standard) {
-                        viewModel.currentStep -= 1
-                    }
-                    impactFeedback(style: .light)
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text(L10n("onboarding.back"))
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    .foregroundColor(AppColorTheme.textPrimary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.15))
-                    )
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            if viewModel.currentStep == 1 && !canProceed {
+                Text(L10n("onboarding.step1_helper"))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppColorTheme.textSecondary)
             }
             
-            Button {
-                if viewModel.currentStep == 4 {
-                    viewModel.completeOnboarding()
-                    dismiss()
-                } else {
-                    withAnimation(AppAnimation.standard) {
-                        viewModel.currentStep += 1
+            HStack(spacing: 12) {
+                if viewModel.currentStep > 1 {
+                    Button {
+                        let sourceStep = viewModel.currentStep
+                        navigationDirection = .backward
+                        withAnimation(AppAnimation.standard) {
+                            viewModel.goToPreviousStep()
+                        }
+                        OnboardingLogging.trace("back_tapped step=\(sourceStep)")
+                        impactFeedback(style: .light)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(L10n("onboarding.back"))
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundColor(AppColorTheme.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 40)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.15))
+                        )
                     }
                 }
-                impactFeedback(style: .medium)
-            } label: {
-                HStack(spacing: 8) {
-                    Text(viewModel.currentStep == 4 ? L10n("onboarding.get_started") : L10n("onboarding.next"))
-                        .font(.system(size: 17, weight: .semibold))
-                    
-                    if viewModel.currentStep < 4 {
+                
+                Button {
+                    let sourceStep = viewModel.currentStep
+                    navigationDirection = .forward
+                    withAnimation(AppAnimation.standard) {
+                        viewModel.goToNextStep()
+                    }
+                    OnboardingLogging.trace("next_tapped step=\(sourceStep)")
+                    impactFeedback(style: .medium)
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(L10n("onboarding.next"))
+                            .font(.system(size: 17, weight: .semibold))
+                        
                         Image(systemName: "chevron.right")
                             .font(.system(size: 16, weight: .semibold))
                     }
-                }
-                .foregroundColor(AppColorTheme.textPrimary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: canProceed ?
-                        [
-                            AppColorTheme.accent,
-                            AppColorTheme.accent.opacity(0.8)
-                        ] :
-                        [
-                            AppColorTheme.textTertiary,
-                            Color.white.opacity(0.2)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 40)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: canProceed ?
+                            [
+                                AppColorTheme.accent,
+                                AppColorTheme.accent.opacity(0.8)
+                            ] :
+                            [
+                                AppColorTheme.textTertiary,
+                                Color.white.opacity(0.2)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .cornerRadius(16)
-                .shadow(
-                    color: canProceed ? AppColorTheme.accent.opacity(0.4) : Color.clear,
-                    radius: 15, x: 0, y: 8
-                )
+                    .cornerRadius(16)
+                    .shadow(
+                        color: canProceed ? AppColorTheme.accent.opacity(0.4) : Color.clear,
+                        radius: 15, x: 0, y: 8
+                    )
+                }
+                .disabled(!canProceed)
+                .opacity(canProceed ? 1.0 : 0.6)
             }
-            .disabled(!canProceed)
-            .opacity(canProceed ? 1.0 : 0.6)
         }
     }
     
     private var canProceed: Bool {
         switch viewModel.currentStep {
         case 1: return viewModel.canProceedToStep2
-        case 2: return viewModel.canProceedToStep3
+        case 2: return true
         case 3: return true // Notifications can always proceed
-        case 4: return viewModel.canComplete
+        case 4: return true
+        case 5: return true
         default: return false
         }
+    }
+    
+    private var goalPersonalizationText: String {
+        switch viewModel.selectedGoal {
+        case .saveMore:
+            return L10n("onboarding.goal_microcopy_save_more")
+        case .payDebt:
+            return L10n("onboarding.goal_microcopy_pay_debts")
+        case .controlSpending:
+            return L10n("onboarding.goal_microcopy_control_spending")
+        }
+    }
+    
+    private func localizedGoalLabel(_ goal: FinancialGoal) -> String {
+        switch goal {
+        case .saveMore: return L10n("onboarding.goal_label_save_more")
+        case .payDebt: return L10n("onboarding.goal_label_pay_debts")
+        case .controlSpending: return L10n("onboarding.goal_label_control_spending")
+        }
+    }
+    
+    private var reminderSummaryText: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        
+        var times: [String] = []
+        if viewModel.morningNotificationEnabled {
+            times.append(formatter.string(from: viewModel.defaultMorningReminderTime))
+        }
+        if viewModel.eveningNotificationEnabled {
+            times.append(formatter.string(from: viewModel.defaultEveningReminderTime))
+        }
+        if viewModel.customNotificationEnabled {
+            times.append(formatter.string(from: viewModel.customNotificationTime))
+        }
+        
+        guard !times.isEmpty else {
+            return L10n("onboarding.reminders_summary_none")
+        }
+        
+        return String(
+            format: L10n("onboarding.reminders_summary_format"),
+            times.count,
+            times.joined(separator: ", ")
+        )
     }
     
     private func impactFeedback(style: UIImpactFeedbackGenerator.FeedbackStyle) {
         let generator = UIImpactFeedbackGenerator(style: style)
         generator.impactOccurred()
+    }
+    
+    private func notificationFeedback(type: UINotificationFeedbackGenerator.FeedbackType) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(type)
+    }
+    
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 
@@ -559,7 +1055,8 @@ struct ModernIncomeEntryView: View {
     let currency: String
     let canRemove: Bool
     let onRemove: () -> Void
-    @FocusState private var isAmountFocused: Bool
+    @State private var isAmountFocused: Bool = false
+    @State private var amountDisplay: String = ""
     
     var body: some View {
         VStack(spacing: 16) {
@@ -592,16 +1089,18 @@ struct ModernIncomeEntryView: View {
                     )
                     .shadow(color: AppColorTheme.accent.opacity(0.3), radius: 8, x: 0, y: 4)
                 
-                // Amount Field (comma thousands separator)
-                TextField("0", text: Binding(
-                    get: { CurrencyFormatter.formatAmountForDisplay(income.amount) },
-                    set: { income.amount = CurrencyFormatter.stripAmountFormatting($0) }
-                ))
-                    .keyboardType(.decimalPad)
-                    .focused($isAmountFocused)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColorTheme.textPrimary)
-                    .frame(maxWidth: .infinity)
+                // Amount Field with custom numeric keyboard (period decimal)
+                AmountInputWithCustomKeyboard(
+                    amountDisplay: $amountDisplay,
+                    placeholder: "0",
+                    focusTrigger: 0,
+                    onFormatChange: { stripped in
+                        income.amount = CurrencyFormatter.sanitizeAmountInput(stripped)
+                    },
+                    onFocusChange: { focused in
+                        isAmountFocused = focused
+                    }
+                )
             }
             
             // Date Picker
@@ -635,12 +1134,22 @@ struct ModernIncomeEntryView: View {
         )
         .scaleEffect(isAmountFocused ? 1.02 : 1.0)
         .animation(AppAnimation.standard, value: isAmountFocused)
+        .onAppear {
+            amountDisplay = CurrencyFormatter.formatAmountForDisplay(income.amount)
+        }
+        .onChange(of: income.amount) { _, newValue in
+            let formatted = CurrencyFormatter.formatAmountForDisplay(newValue)
+            if amountDisplay != formatted {
+                amountDisplay = formatted
+            }
+        }
     }
 }
 
 // MARK: - Goal Selection Button
 struct GoalSelectionButton: View {
     let goal: FinancialGoal
+    let title: String
     let isSelected: Bool
     let action: () -> Void
     
@@ -667,7 +1176,7 @@ struct GoalSelectionButton: View {
                 }
                 
                 // Text
-                Text(goal.rawValue)
+                Text(title)
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(AppColorTheme.textPrimary)
                 
@@ -682,6 +1191,7 @@ struct GoalSelectionButton: View {
                 }
             }
             .padding(20)
+            .frame(minHeight: 52)
             .background(
                 RoundedRectangle(cornerRadius: 20)
                     .fill(
@@ -784,6 +1294,29 @@ struct NotificationToggleRow: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.white.opacity(0.1))
         )
+    }
+}
+
+// MARK: - Micro Interaction Button Style
+struct PressableScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+    }
+}
+
+enum OnboardingLogging {
+    private static let subsystem = Bundle.main.bundleIdentifier ?? "Friscora"
+    private static let logger = Logger(subsystem: subsystem, category: "Onboarding")
+    
+    static func trace(_ message: @autoclosure () -> String) {
+        let text = message()
+        logger.info("\(text, privacy: .public)")
+        #if DEBUG
+        print("[Onboarding] \(text)")
+        #endif
     }
 }
 

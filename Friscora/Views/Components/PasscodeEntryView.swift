@@ -29,21 +29,29 @@ struct PasscodeEntryView: View {
     }
     
     var body: some View {
-        VStack(spacing: 32) {
-            // Title
+        VStack(spacing: 0) {
+            // Title / subtitle — tap dismisses the number pad
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
-                
+                    .multilineTextAlignment(.center)
+
                 if let subtitle = subtitle {
                     Text(subtitle)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
                 }
             }
-            
-            // Passcode dots
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 32)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isFocused = false
+            }
+
+            // Dots row — full-width “passcode section”; tap refocuses the field
             HStack(spacing: 20) {
                 ForEach(0..<maxDigits, id: \.self) { index in
                     Circle()
@@ -56,14 +64,15 @@ struct PasscodeEntryView: View {
                         )
                 }
             }
-            .offset(x: shakeOffset)
-            .animation(AppAnimation.passcodeShake, value: shakeOffset)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
             .contentShape(Rectangle())
             .onTapGesture {
-                // Let users reopen the keyboard by tapping the passcode dots.
                 isFocused = true
             }
-            
+            .offset(x: shakeOffset)
+            .animation(AppAnimation.passcodeShake, value: shakeOffset)
+
             // Hidden text field for input
             TextField("", text: $passcode)
                 .keyboardType(.numberPad)

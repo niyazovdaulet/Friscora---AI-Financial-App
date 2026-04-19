@@ -185,6 +185,7 @@ class WorkScheduleService: ObservableObject {
         jobs.removeAll { $0.id == job.id }
         // Also delete all work days for this job
         workDays.removeAll { $0.jobId == job.id }
+        SalarySyncService.shared.removeDismissals(forJobId: job.id)
         saveJobs()
         saveWorkDays()
     }

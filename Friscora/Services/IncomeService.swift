@@ -96,6 +96,9 @@ class IncomeService: ObservableObject {
     
     /// Delete an income
     func deleteIncome(_ income: Income) {
+        if case .salary(let jobId, let paymentDate) = income.source {
+            SalarySyncService.shared.recordUserDismissedSalary(jobId: jobId, paymentDate: paymentDate)
+        }
         incomes.removeAll { $0.id == income.id }
         saveIncomes()
         

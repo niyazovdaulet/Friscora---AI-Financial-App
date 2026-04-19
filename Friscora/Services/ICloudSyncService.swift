@@ -26,6 +26,7 @@ private enum SyncKey {
     static let workPatterns = "work_patterns_v1"
     static let bulkOperations = "bulk_operations_v1"
     static let dismissedPatternSuggestions = "dismissed_pattern_suggestions_v1"
+    static let salarySyncUserDismissed = "salary_sync_user_dismissed_v1"
     static let userProfile = "user_profile"
     static let syncTimestamp = "friscora_sync_timestamp"
 }
@@ -58,6 +59,7 @@ final class ICloudSyncService: ObservableObject {
         (SyncKey.workPatterns, SyncKey.workPatterns),
         (SyncKey.bulkOperations, SyncKey.bulkOperations),
         (SyncKey.dismissedPatternSuggestions, SyncKey.dismissedPatternSuggestions),
+        (SyncKey.salarySyncUserDismissed, SyncKey.salarySyncUserDismissed),
         (SyncKey.userProfile, SyncKey.userProfile)
     ]
     

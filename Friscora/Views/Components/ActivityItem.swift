@@ -53,6 +53,16 @@ struct ActivityItem: Identifiable {
         return false
     }
     
+    /// Merged balances and goal rows are excluded from History bulk delete; use their own flows.
+    var canBulkDeleteFromHistory: Bool {
+        switch type {
+        case .expense, .income:
+            return true
+        case .mergedBalance, .goalContribution:
+            return false
+        }
+    }
+    
     init(expense: Expense) {
         self.id = expense.id
         self.type = .expense(expense)

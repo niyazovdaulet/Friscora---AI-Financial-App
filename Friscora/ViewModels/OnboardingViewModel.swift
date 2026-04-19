@@ -15,6 +15,14 @@ struct IncomeEntry: Identifiable {
 }
 
 class OnboardingViewModel: ObservableObject {
+    enum OnboardingStep: Int, CaseIterable {
+        case valueSetup = 1
+        case goal = 2
+        case notifications = 3
+        case security = 4
+        case completion = 5
+    }
+    
     @Published var incomes: [IncomeEntry] = [IncomeEntry()]
     @Published var selectedGoal: FinancialGoal = .saveMore
     @Published var currentStep: Int = 1
@@ -29,6 +37,14 @@ class OnboardingViewModel: ObservableObject {
     @Published var confirmPasscode: String = ""
     @Published var passcodeStep: Int = 1 // 1 = enter, 2 = confirm
     @Published var biometricEnabled: Bool = false
+    
+    var defaultMorningReminderTime: Date {
+        Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: Date()) ?? Date()
+    }
+    
+    var defaultEveningReminderTime: Date {
+        Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date()
+    }
     
     private let userProfileService = UserProfileService.shared
     private let incomeService = IncomeService.shared
@@ -49,7 +65,7 @@ class OnboardingViewModel: ObservableObject {
     }
     
     var canProceedToStep3: Bool {
-        canProceedToStep2
+        true
     }
     
     var canComplete: Bool {
@@ -71,6 +87,18 @@ class OnboardingViewModel: ObservableObject {
         return true
     }
     
+    var currentOnboardingStep: OnboardingStep {
+        OnboardingStep(rawValue: currentStep) ?? .valueSetup
+    }
+    
+    func goToNextStep() {
+        currentStep = min(currentStep + 1, OnboardingStep.completion.rawValue)
+    }
+    
+    func goToPreviousStep() {
+        currentStep = max(currentStep - 1, OnboardingStep.valueSetup.rawValue)
+    }
+    
     func addIncome() {
         incomes.append(IncomeEntry())
     }
@@ -90,14 +118,11 @@ class OnboardingViewModel: ObservableObject {
         }
         
         // Save notification schedule
-        let morningTime = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: Date()) ?? Date()
-        let eveningTime = Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date()
-        
         let notificationSchedule = NotificationSchedule(
             morningEnabled: morningNotificationEnabled,
-            morningTime: morningTime,
+            morningTime: defaultMorningReminderTime,
             eveningEnabled: eveningNotificationEnabled,
-            eveningTime: eveningTime,
+            eveningTime: defaultEveningReminderTime,
             customEnabled: customNotificationEnabled,
             customTime: customNotificationEnabled ? customNotificationTime : nil
         )

@@ -206,6 +206,23 @@ final class StatementImportParserTests: XCTestCase {
         XCTAssertEqual(cal.component(.day, from: parsed[0].date), 24)
     }
 
+    func testParsesEnglishSantanderStyleMultilineBlocks() {
+        let lines = [
+            "Operation date",
+            "2026-04-16",
+            "Booking date",
+            "2026-04-17",
+            "Title: SUPERMARKET PAYMENT",
+            "-37,89 PLN"
+        ]
+        let blocks = parser.parseTransactionBlocks(from: lines.map { $0.trimmingCharacters(in: .whitespaces) })
+        let parsed = blocks.compactMap { parser.buildParsedTransaction(from: $0) }
+        XCTAssertEqual(parsed.count, 1)
+        XCTAssertEqual(parsed.first?.direction, .expense)
+        XCTAssertEqual(parsed.first?.absoluteAmount, 37.89, accuracy: 0.01)
+        XCTAssertEqual(parsed.first?.currency, "PLN")
+    }
+
     func testParsesMmDdYyWithDots() {
         let lines = [
             "Data operacji",

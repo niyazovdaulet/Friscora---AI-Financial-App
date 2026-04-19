@@ -8,10 +8,23 @@
 import SwiftUI
 import UIKit
 
+private struct HistoryBulkDeleteConfirmation: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let perform: () -> Void
+}
+
 enum TransactionFilter: String, CaseIterable {
     case all = "All"
     case income = "Income"
     case expenses = "Expenses"
+}
+
+private enum HistoryTextFocus: Hashable {
+    case search
+    case amountMin
+    case amountMax
 }
 
 struct HistoryView: View {
@@ -26,7 +39,29 @@ struct HistoryView: View {
     @State private var showDatePicker = false
     @State private var customStartDate: Date = Date()
     @State private var customEndDate: Date = Date()
-    @FocusState private var isSearchFocused: Bool
+    @FocusState private var textFocus: HistoryTextFocus?
+    
+    @State private var isSelectionMode = false
+    @State private var selectedActivityIDs: Set<UUID> = []
+    @State private var amountMinText = ""
+    @State private var amountMaxText = ""
+    @State private var showPickMonthSheet = false
+    @State private var showPickBeforeDateSheet = false
+    @State private var bulkDeleteMonthAnchor = Date()
+    @State private var bulkDeleteBeforeDate = Date()
+    @State private var bulkDeleteConfirmation: HistoryBulkDeleteConfirmation?
+    
+    private var filterConfiguration: HistoryFilterConfiguration {
+        HistoryFilterConfiguration(
+            searchText: searchText,
+            selectedFilter: selectedFilter,
+            selectedDateRange: selectedDateRange,
+            customStartDate: customStartDate,
+            customEndDate: customEndDate,
+            amountMin: parsedAmount(from: amountMinText),
+            amountMax: parsedAmount(from: amountMaxText)
+        )
+    }
     
     var body: some View {
         NavigationStack {
@@ -48,14 +83,212 @@ struct HistoryView: View {
             .navigationBarTitleDisplayMode(.large)
             .transition(.opacity.combined(with: .scale(scale: 0.96)))
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(AppColorTheme.textSecondary)
-                            .font(.title3)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if isSelectionMode {
+                        Button(L10n("common.cancel")) {
+                            dismissHistoryKeyboard()
+                            HapticHelper.lightImpact()
+                            isSelectionMode = false
+                            selectedActivityIDs = []
+                        }
+                        .foregroundColor(AppColorTheme.accent)
+                    } else {
+                        Button(L10n("history.bulk_enter_select")) {
+                            dismissHistoryKeyboard()
+                            HapticHelper.selection()
+                            isSelectionMode = true
+                        }
+                        .foregroundColor(AppColorTheme.accent)
                     }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 16) {
+                        if !isSelectionMode {
+                            Menu {
+                                Button(L10n("history.bulk_delete_visible"), role: .destructive) {
+                                    dismissHistoryKeyboard()
+                                    presentDeleteVisibleConfirmation()
+                                }
+                                Button(L10n("history.bulk_delete_month_menu")) {
+                                    dismissHistoryKeyboard()
+                                    bulkDeleteMonthAnchor = Date()
+                                    showPickMonthSheet = true
+                                    HapticHelper.lightImpact()
+                                }
+                                Button(L10n("history.bulk_delete_before_menu")) {
+                                    dismissHistoryKeyboard()
+                                    bulkDeleteBeforeDate = Date()
+                                    showPickBeforeDateSheet = true
+                                    HapticHelper.lightImpact()
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .foregroundColor(AppColorTheme.accent)
+                                    .font(.title3)
+                            }
+                        } else {
+                            Button(L10n("history.bulk_select_all")) {
+                                dismissHistoryKeyboard()
+                                HapticHelper.lightImpact()
+                                let ids = HistoryBulkActions.deletableActivities(from: getFilteredActivities()).map(\.id)
+                                selectedActivityIDs = Set(ids)
+                            }
+                            .disabled(HistoryBulkActions.deletableActivities(from: getFilteredActivities()).isEmpty)
+                            .foregroundColor(AppColorTheme.accent)
+                        }
+                        Button {
+                            dismissHistoryKeyboard()
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(AppColorTheme.textSecondary)
+                                .font(.title3)
+                        }
+                    }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(L10n("common.done")) {
+                        dismissHistoryKeyboard()
+                    }
+                    .foregroundColor(AppColorTheme.accent)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if isSelectionMode {
+                    historyBulkSelectionBar
+                }
+            }
+            .sheet(isPresented: $showPickMonthSheet) {
+                historyPickMonthSheet
+            }
+            .sheet(isPresented: $showPickBeforeDateSheet) {
+                historyPickBeforeDateSheet
+            }
+            .alert(item: $bulkDeleteConfirmation) { payload in
+                Alert(
+                    title: Text(payload.title),
+                    message: Text(payload.message),
+                    primaryButton: .destructive(Text(L10n("common.delete"))) {
+                        payload.perform()
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
+        }
+    }
+    
+    private func dismissHistoryKeyboard() {
+        textFocus = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+    
+    private var historyBulkSelectionBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+                .background(AppColorTheme.textTertiary.opacity(0.3))
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if selectedActivityIDs.isEmpty {
+                        Text(L10n("history.bulk_select_hint"))
+                            .font(.subheadline)
+                            .foregroundColor(AppColorTheme.textSecondary)
+                    } else {
+                        Text(String(format: L10n("history.bulk_n_selected"), selectedActivityIDs.count))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(AppColorTheme.textPrimary)
+                    }
+                }
+                Spacer(minLength: 8)
+                Button(role: .destructive) {
+                    presentDeleteSelectedConfirmation()
+                } label: {
+                    Text(L10n("history.bulk_delete_selected"))
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.bordered)
+                .disabled(selectedActivityIDs.isEmpty)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(AppColorTheme.cardBackground)
+        }
+    }
+    
+    private var historyPickMonthSheet: some View {
+        NavigationStack {
+            ZStack {
+                AppColorTheme.background
+                    .ignoresSafeArea()
+                Form {
+                    Section {
+                        DatePicker(L10n("history.bulk_pick_month"), selection: $bulkDeleteMonthAnchor, displayedComponents: [.date])
+                            .foregroundColor(AppColorTheme.textPrimary)
+                    } footer: {
+                        Text(L10n("history.bulk_month_footer"))
+                            .font(.caption)
+                            .foregroundColor(AppColorTheme.textSecondary)
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle(L10n("history.bulk_delete_month_menu"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n("common.cancel")) {
+                        showPickMonthSheet = false
+                    }
+                    .foregroundColor(AppColorTheme.accent)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n("history.bulk_review_delete")) {
+                        showPickMonthSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            presentDeleteMonthConfirmation(anchor: bulkDeleteMonthAnchor)
+                        }
+                    }
+                    .foregroundColor(AppColorTheme.accent)
+                }
+            }
+        }
+    }
+    
+    private var historyPickBeforeDateSheet: some View {
+        NavigationStack {
+            ZStack {
+                AppColorTheme.background
+                    .ignoresSafeArea()
+                Form {
+                    Section {
+                        DatePicker(L10n("history.bulk_pick_before_date"), selection: $bulkDeleteBeforeDate, displayedComponents: [.date])
+                            .foregroundColor(AppColorTheme.textPrimary)
+                    } footer: {
+                        Text(L10n("history.bulk_before_footer"))
+                            .font(.caption)
+                            .foregroundColor(AppColorTheme.textSecondary)
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle(L10n("history.bulk_delete_before_menu"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n("common.cancel")) {
+                        showPickBeforeDateSheet = false
+                    }
+                    .foregroundColor(AppColorTheme.accent)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n("history.bulk_review_delete")) {
+                        showPickBeforeDateSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            presentDeleteBeforeConfirmation(cutoff: bulkDeleteBeforeDate)
+                        }
+                    }
+                    .foregroundColor(AppColorTheme.accent)
                 }
             }
         }
@@ -69,9 +302,10 @@ struct HistoryView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(AppColorTheme.textSecondary)
                     .font(.subheadline)
+                    .onTapGesture { dismissHistoryKeyboard() }
                 
                 TextField("Search transactions...", text: $searchText)
-                    .focused($isSearchFocused)
+                    .focused($textFocus, equals: .search)
                     .foregroundColor(AppColorTheme.textPrimary)
                     .font(.subheadline)
                 
@@ -100,6 +334,7 @@ struct HistoryView: View {
                                 title: filter.rawValue,
                                 isSelected: selectedFilter == filter,
                                 action: {
+                                    dismissHistoryKeyboard()
                                     HapticHelper.selection()
                                     withAnimation(AppAnimation.standard) {
                                         selectedFilter = filter
@@ -112,6 +347,7 @@ struct HistoryView: View {
                 
                 // Date Range Filter
                 Button {
+                    dismissHistoryKeyboard()
                     showDatePicker.toggle()
                     HapticHelper.lightImpact()
                 } label: {
@@ -131,6 +367,42 @@ struct HistoryView: View {
                         Capsule()
                             .fill(AppColorTheme.accent.opacity(0.15))
                     )
+                }
+            }
+            
+            // Optional amount range (combined with date, type, and search for list and bulk actions)
+            HStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Text(L10n("history.amount_min"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                        .frame(width: 36, alignment: .leading)
+                        .onTapGesture { dismissHistoryKeyboard() }
+                    TextField(L10n("history.amount_min_placeholder"), text: $amountMinText)
+                        .focused($textFocus, equals: .amountMin)
+                        .keyboardType(.decimalPad)
+                        .font(.subheadline)
+                        .foregroundColor(AppColorTheme.textPrimary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(AppColorTheme.elevatedBackground)
+                        .cornerRadius(8)
+                }
+                HStack(spacing: 8) {
+                    Text(L10n("history.amount_max"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                        .frame(width: 36, alignment: .leading)
+                        .onTapGesture { dismissHistoryKeyboard() }
+                    TextField(L10n("history.amount_max_placeholder"), text: $amountMaxText)
+                        .focused($textFocus, equals: .amountMax)
+                        .keyboardType(.decimalPad)
+                        .font(.subheadline)
+                        .foregroundColor(AppColorTheme.textPrimary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(AppColorTheme.elevatedBackground)
+                        .cornerRadius(8)
                 }
             }
         }
@@ -187,7 +459,14 @@ struct HistoryView: View {
                             
                             // Activities for this date
                             ForEach(activities) { activity in
-                                HistoryActivityRow(activity: activity)
+                                HistoryActivityRow(
+                                    activity: activity,
+                                    isSelectionMode: isSelectionMode,
+                                    isSelected: selectedActivityIDs.contains(activity.id),
+                                    onBulkToggle: {
+                                        toggleBulkSelection(for: activity)
+                                    }
+                                )
                                     .transition(.asymmetric(
                                         insertion: .move(edge: .top).combined(with: .opacity),
                                         removal: .opacity
@@ -200,6 +479,12 @@ struct HistoryView: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.immediately)
+        .simultaneousGesture(
+            TapGesture().onEnded { _ in
+                dismissHistoryKeyboard()
+            }
+        )
     }
     
     // MARK: - Empty State
@@ -212,106 +497,144 @@ struct HistoryView: View {
     }
     
     // MARK: - Helper Methods
-    private func getFilteredActivities() -> [ActivityItem] {
-        let calendar = Calendar.current
-        let goalService = GoalService.shared
+    
+    private func parsedAmount(from text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.replacingOccurrences(of: ",", with: ".")
+        return Double(normalized)
+    }
+    
+    private func buildBaseActivities() -> [ActivityItem] {
         var activities: [ActivityItem] = []
-        
-        // Get all expenses
         let allExpenses = expenseService.expenses.map { ActivityItem(expense: $0) }
         activities.append(contentsOf: allExpenses)
-        
-        // Get all incomes
         let allIncomes = incomeService.incomes.map { ActivityItem(income: $0) }
         activities.append(contentsOf: allIncomes)
-        
-        // Get all goal contributions (money added to goals)
         for goalActivity in goalService.activities {
             let goalTitle = goalService.goals.first(where: { $0.id == goalActivity.goalId })?.title ?? L10n("dashboard.goals")
             activities.append(ActivityItem(goalActivity: goalActivity, goalTitle: goalTitle))
         }
-        
-        // Get merged balances (only for current month if applicable)
         if let mergedEntries = getMergedBalanceEntries() {
             activities.append(contentsOf: mergedEntries)
         }
-        
-        // Apply date filter
-        let dateFiltered = activities.filter { activity in
-            switch selectedDateRange {
-            case .all:
-                return true
-            case .today:
-                return calendar.isDateInToday(activity.date)
-            case .thisWeek:
-                return calendar.isDate(activity.date, equalTo: Date(), toGranularity: .weekOfYear)
-            case .thisMonth:
-                return calendar.isDate(activity.date, equalTo: Date(), toGranularity: .month)
-            case .thisYear:
-                return calendar.isDate(activity.date, equalTo: Date(), toGranularity: .year)
-            case .custom:
-                return activity.date >= customStartDate && activity.date <= customEndDate
-            }
+        return activities
+    }
+    
+    private func getFilteredActivities() -> [ActivityItem] {
+        HistoryBulkActions.filterActivities(buildBaseActivities(), configuration: filterConfiguration)
+    }
+    
+    private func toggleBulkSelection(for activity: ActivityItem) {
+        guard activity.canBulkDeleteFromHistory else {
+            HapticHelper.lightImpact()
+            return
         }
-        
-        // Apply type filter
-        let typeFiltered = dateFiltered.filter { activity in
-            switch selectedFilter {
-            case .all:
-                return true
-            case .income:
-                return activity.isIncome || activity.isMergedBalance
-            case .expenses:
-                return !activity.isIncome && !activity.isMergedBalance && !activity.isGoalContribution
-            }
+        HapticHelper.selection()
+        if selectedActivityIDs.contains(activity.id) {
+            selectedActivityIDs.remove(activity.id)
+        } else {
+            selectedActivityIDs.insert(activity.id)
         }
-        
-        // Apply search filter
-        let searchFiltered = typeFiltered.filter { activity in
-            if searchText.isEmpty {
-                return true
-            }
-            
-            let searchLower = searchText.lowercased()
-            
-            // Search in expense category/note
-            if case .expense(let expense) = activity.type {
-                if expense.categoryName().lowercased().contains(searchLower) {
-                    return true
-                }
-                if let note = expense.note, note.lowercased().contains(searchLower) {
-                    return true
-                }
-            }
-            
-            // Search in income note
-            if case .income(let income) = activity.type {
-                if let note = income.note, note.lowercased().contains(searchLower) {
-                    return true
-                }
-            }
-            
-            // Search in merged balance month name
-            if case .mergedBalance(let monthName, _, _) = activity.type {
-                if monthName.lowercased().contains(searchLower) {
-                    return true
-                }
-            }
-            
-            // Search in goal contribution title and note
-            if case .goalContribution(let goalActivity, let goalTitle) = activity.type {
-                if goalTitle.lowercased().contains(searchLower) {
-                    return true
-                }
-                if let note = goalActivity.note, note.lowercased().contains(searchLower) {
-                    return true
-                }
-            }
-            
-            return false
+    }
+    
+    private func presentDeleteVisibleConfirmation() {
+        let targets = HistoryBulkActions.deletableActivities(from: getFilteredActivities())
+        guard !targets.isEmpty else {
+            HapticHelper.lightImpact()
+            return
         }
-        
-        return searchFiltered.sorted { $0.date > $1.date }
+        let counts = HistoryBulkActions.countExpensesAndIncomes(targets)
+        let summary = HistoryBulkActions.deleteSummaryLine(expenseCount: counts.expenses, incomeCount: counts.incomes)
+        let message = String(format: L10n("history.bulk_delete_visible_message"), summary)
+        bulkDeleteConfirmation = HistoryBulkDeleteConfirmation(
+            title: L10n("history.bulk_delete_visible_title"),
+            message: message,
+            perform: {
+                HapticHelper.mediumImpact()
+                HistoryBulkActions.deleteExpensesAndIncomes(targets)
+            }
+        )
+    }
+    
+    private func presentDeleteMonthConfirmation(anchor: Date) {
+        let targets = deletableActivitiesInSameMonth(as: anchor)
+        guard !targets.isEmpty else {
+            HapticHelper.lightImpact()
+            return
+        }
+        let counts = HistoryBulkActions.countExpensesAndIncomes(targets)
+        let summary = HistoryBulkActions.deleteSummaryLine(expenseCount: counts.expenses, incomeCount: counts.incomes)
+        let message = String(format: L10n("history.bulk_confirm_month_message"), summary)
+        bulkDeleteConfirmation = HistoryBulkDeleteConfirmation(
+            title: L10n("history.bulk_confirm_month_title"),
+            message: message,
+            perform: {
+                HapticHelper.mediumImpact()
+                HistoryBulkActions.deleteExpensesAndIncomes(targets)
+            }
+        )
+    }
+    
+    private func presentDeleteBeforeConfirmation(cutoff: Date) {
+        let targets = deletableActivitiesStrictlyBefore(cutoff)
+        guard !targets.isEmpty else {
+            HapticHelper.lightImpact()
+            return
+        }
+        let counts = HistoryBulkActions.countExpensesAndIncomes(targets)
+        let summary = HistoryBulkActions.deleteSummaryLine(expenseCount: counts.expenses, incomeCount: counts.incomes)
+        let message = String(format: L10n("history.bulk_confirm_before_message"), summary)
+        bulkDeleteConfirmation = HistoryBulkDeleteConfirmation(
+            title: L10n("history.bulk_confirm_before_title"),
+            message: message,
+            perform: {
+                HapticHelper.mediumImpact()
+                HistoryBulkActions.deleteExpensesAndIncomes(targets)
+            }
+        )
+    }
+    
+    private func presentDeleteSelectedConfirmation() {
+        let visible = getFilteredActivities()
+        let targets = visible.filter { selectedActivityIDs.contains($0.id) && $0.canBulkDeleteFromHistory }
+        guard !targets.isEmpty else {
+            HapticHelper.lightImpact()
+            return
+        }
+        let counts = HistoryBulkActions.countExpensesAndIncomes(targets)
+        let summary = HistoryBulkActions.deleteSummaryLine(expenseCount: counts.expenses, incomeCount: counts.incomes)
+        let message = String(format: L10n("history.bulk_confirm_selected_message"), summary)
+        bulkDeleteConfirmation = HistoryBulkDeleteConfirmation(
+            title: L10n("history.bulk_confirm_selected_title"),
+            message: message,
+            perform: {
+                performBulkDeleteSelected(targets: targets)
+            }
+        )
+    }
+    
+    private func performBulkDeleteSelected(targets: [ActivityItem]) {
+        HapticHelper.mediumImpact()
+        HistoryBulkActions.deleteExpensesAndIncomes(targets)
+        selectedActivityIDs = []
+        isSelectionMode = false
+    }
+    
+    private func deletableActivitiesInSameMonth(as anchor: Date) -> [ActivityItem] {
+        let calendar = Calendar.current
+        return buildBaseActivities().filter { activity in
+            guard activity.canBulkDeleteFromHistory else { return false }
+            return calendar.isDate(activity.date, equalTo: anchor, toGranularity: .month)
+        }
+    }
+    
+    private func deletableActivitiesStrictlyBefore(_ date: Date) -> [ActivityItem] {
+        let start = Calendar.current.startOfDay(for: date)
+        return buildBaseActivities().filter { activity in
+            guard activity.canBulkDeleteFromHistory else { return false }
+            return activity.date < start
+        }
     }
     
     private func getMergedBalanceEntries() -> [ActivityItem]? {
@@ -438,6 +761,10 @@ struct FilterChip: View {
 // MARK: - History Activity Row
 struct HistoryActivityRow: View {
     let activity: ActivityItem
+    var isSelectionMode: Bool = false
+    var isSelected: Bool = false
+    var onBulkToggle: (() -> Void)? = nil
+    
     @State private var showEditSheet = false
     @State private var showDeleteConfirmation = false
     
@@ -453,12 +780,84 @@ struct HistoryActivityRow: View {
     }
     
     var body: some View {
-        Button {
-            if canEdit {
-                showEditSheet = true
+        Group {
+            if isSelectionMode {
+                rowInner
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if activity.canBulkDeleteFromHistory {
+                            onBulkToggle?()
+                        } else {
+                            HapticHelper.lightImpact()
+                        }
+                    }
+            } else {
+                Button {
+                    if canEdit {
+                        showEditSheet = true
+                    }
+                } label: {
+                    rowInner
+                }
+                .buttonStyle(.plain)
+                .disabled(activity.isMergedBalance)
             }
-        } label: {
-            HStack(spacing: 12) {
+        }
+        .padding(16)
+        .background(AppColorTheme.cardBackground)
+        .cornerRadius(16)
+        .opacity(isSelectionMode && !activity.canBulkDeleteFromHistory ? 0.55 : 1)
+        .sheet(isPresented: $showEditSheet) {
+            Group {
+                if canEdit {
+                    if case .expense(let expense) = activity.type {
+                        EditExpenseView(expense: expense)
+                    } else if case .income(let income) = activity.type {
+                        EditIncomeView(income: income)
+                    }
+                }
+            }
+            .presentationCornerRadius(24)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
+        .alert(L10n("common.delete"), isPresented: $showDeleteConfirmation) {
+            Button(L10n("common.delete"), role: .destructive) {
+                deleteActivity()
+            }
+            Button(L10n("common.cancel"), role: .cancel) { }
+        } message: {
+            if !activity.isMergedBalance {
+                let typeLabel: String = {
+                    if activity.isGoalContribution { return L10n("activity.goal_contribution") }
+                    if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
+                        return L10n("deleted_category.income_title")
+                    }
+                    if case .income(let income) = activity.type, income.source?.isSalary == true { return L10n("activity.salary") }
+                    if activity.isIncome { return L10n("activity.income") }
+                    return L10n("activity.expense")
+                }()
+                Text(String(format: L10n("common.delete_confirm"), typeLabel))
+            }
+        }
+    }
+    
+    private var rowInner: some View {
+        HStack(spacing: 12) {
+                if isSelectionMode {
+                    if activity.canBulkDeleteFromHistory {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundColor(isSelected ? AppColorTheme.accent : AppColorTheme.textTertiary)
+                            .frame(width: 28, alignment: .center)
+                            .accessibilityLabel(isSelected ? L10n("history.bulk_accessibility_selected") : L10n("history.bulk_accessibility_unselected"))
+                    } else {
+                        Image(systemName: "circle.slash")
+                            .font(.title3)
+                            .foregroundColor(AppColorTheme.textTertiary)
+                            .frame(width: 28, alignment: .center)
+                            .accessibilityLabel(L10n("history.bulk_accessibility_not_available"))
+                    }
+                }
                 // Icon
                 if activity.isMergedBalance {
                     ZStack {
@@ -570,6 +969,13 @@ struct HistoryActivityRow: View {
                             .foregroundColor(AppColorTheme.textSecondary)
                     }
                     
+                    if isSelectionMode && !activity.canBulkDeleteFromHistory {
+                        Text(L10n("history.bulk_not_selectable_hint"))
+                            .font(.caption2)
+                            .foregroundColor(AppColorTheme.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
                     if case .expense(let expense) = activity.type, let note = expense.note, !note.isEmpty {
                         Text(note)
                             .font(.caption)
@@ -601,7 +1007,7 @@ struct HistoryActivityRow: View {
                         .fontWeight(.bold)
                         .foregroundColor(amountColor)
                     
-                    if !activity.isMergedBalance {
+                    if !activity.isMergedBalance && !isSelectionMode {
                         Button {
                             showDeleteConfirmation = true
                         } label: {
@@ -613,44 +1019,6 @@ struct HistoryActivityRow: View {
                     }
                 }
             }
-            .padding(16)
-            .background(AppColorTheme.cardBackground)
-            .cornerRadius(16)
-        }
-        .buttonStyle(.plain)
-        .disabled(activity.isMergedBalance)
-        .sheet(isPresented: $showEditSheet) {
-            Group {
-                if canEdit {
-                    if case .expense(let expense) = activity.type {
-                        EditExpenseView(expense: expense)
-                    } else if case .income(let income) = activity.type {
-                        EditIncomeView(income: income)
-                    }
-                }
-            }
-            .presentationCornerRadius(24)
-            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-        }
-        .alert(L10n("common.delete"), isPresented: $showDeleteConfirmation) {
-            Button(L10n("common.delete"), role: .destructive) {
-                deleteActivity()
-            }
-            Button(L10n("common.cancel"), role: .cancel) { }
-        } message: {
-            if !activity.isMergedBalance {
-                let typeLabel: String = {
-                    if activity.isGoalContribution { return L10n("activity.goal_contribution") }
-                    if case .income(let income) = activity.type, income.source?.isCategoryDeletionRevert == true {
-                        return L10n("deleted_category.income_title")
-                    }
-                    if case .income(let income) = activity.type, income.source?.isSalary == true { return L10n("activity.salary") }
-                    if activity.isIncome { return L10n("activity.income") }
-                    return L10n("activity.expense")
-                }()
-                Text(String(format: L10n("common.delete_confirm"), typeLabel))
-            }
-        }
     }
     
     private func deleteActivity() {

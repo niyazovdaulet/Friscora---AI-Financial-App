@@ -205,8 +205,13 @@ final class StatementParserService {
                 let next = lines[index + 1]
                 let a = foldedLineFragment(current)
                 let b = foldedLineFragment(next)
-                let combined = a + b
-                if combined == "dataoperacji" || combined == "dataksiegowania" || combined == "datawydruku" {
+                let combinedPL = a + b
+                let combinedEN = foldedEnglishLineFragment(current) + foldedEnglishLineFragment(next)
+                let stitchedPairs: Set<String> = [
+                    "dataoperacji", "dataksiegowania", "datawydruku",
+                    "operationdate", "bookingdate", "transactiondate", "statementdate"
+                ]
+                if stitchedPairs.contains(combinedPL) || stitchedPairs.contains(combinedEN) {
                     let stitched = "\(current) \(next)"
                         .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
                         .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -219,6 +224,12 @@ final class StatementParserService {
             index += 1
         }
         return merged
+    }
+
+    private func foldedEnglishLineFragment(_ line: String) -> String {
+        line.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
+            .lowercased()
     }
 
     func parseTransactionBlocks(from lines: [String]) -> [RawTransactionBlock] {
@@ -356,6 +367,10 @@ final class StatementParserService {
         if upperFolded.contains("OBCIAZENIE") {
             direction = .expense
         } else if upperFolded.contains("UZNANIE") {
+            direction = .income
+        } else if upperFolded.range(of: #"\bDEBIT\b"#, options: .regularExpression) != nil {
+            direction = .expense
+        } else if upperFolded.range(of: #"\bCREDIT\b"#, options: .regularExpression) != nil {
             direction = .income
         }
 
@@ -515,18 +530,36 @@ final class StatementParserService {
 
     private func isOperationDateMarker(_ line: String) -> Bool {
         if line.range(of: #"(?i)data\s+opis\s+kwota"#, options: .regularExpression) != nil { return false }
-        let normalized = normalizeForKeywordMatch(line)
-        return normalized.contains("dataoperacji")
+        let pl = normalizeForKeywordMatch(line)
+        if pl.contains("dataoperacji") { return true }
+        let en = foldedEnglishLineFragment(line)
+        // English / international Santander (and similar) exports
+        if en.contains("operationdate") { return true }
+        if en.contains("transactiondate") { return true }
+        if en.contains("dateofoperation") { return true }
+        if en.contains("executedon") { return true }
+        return false
     }
 
     private func isBookingDateMarker(_ line: String) -> Bool {
-        let normalized = normalizeForKeywordMatch(line)
-        return normalized.contains("dataksiegowania")
+        let pl = normalizeForKeywordMatch(line)
+        if pl.contains("dataksiegowania") { return true }
+        let en = foldedEnglishLineFragment(line)
+        if en.contains("bookingdate") { return true }
+        if en.contains("postingdate") { return true }
+        if en.contains("settlementdate") { return true }
+        if en.contains("valuedate") { return true }
+        return false
     }
 
     private func extractTitleValue(from line: String) -> String? {
-        guard let range = line.range(of: "Tytuł:", options: .caseInsensitive) else { return nil }
-        return String(line[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefixes = ["Tytuł:", "Title:", "Description:", "Transaction details:"]
+        for prefix in prefixes {
+            if let range = line.range(of: prefix, options: .caseInsensitive) {
+                return String(line[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return nil
     }
 
     private func shouldContinueTitle(with line: String) -> Bool {
@@ -572,11 +605,16 @@ final class StatementParserService {
             "SUMA WPŁYWÓW",
             "SUMA WYDATKÓW",
             "LICZBA OPERACJI",
-            "ŁĄCZNIE:"
+            "ŁĄCZNIE:",
+            "ACCOUNT HISTORY",
+            "TRANSACTION HISTORY",
+            "STATEMENT OF ACCOUNT",
+            "YOUR ACCOUNT SUMMARY"
         ]
         if blockedMarkers.contains(where: { upper.contains($0) }) { return true }
         if upper.hasPrefix("WPŁYWY ") || upper.hasPrefix("WYDATKI ") { return true }
         if line.range(of: #"Strona\s+\d+/\d+"#, options: .regularExpression) != nil { return true }
+        if line.range(of: #"Page\s+\d+\s+of\s+\d+"#, options: .regularExpression) != nil { return true }
         return isMostlyMetadata(line)
     }
 

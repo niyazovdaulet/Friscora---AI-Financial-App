@@ -23,7 +23,67 @@ final class SalarySyncService {
     private let incomeService = IncomeService.shared
     private let calendar = Calendar.current
     
-    private init() {}
+    /// User removed a synced salary income; do not recreate it for this (job, pay day) until the job is deleted (optional cleanup).
+    private let userDismissedKey = "salary_sync_user_dismissed_v1"
+    private var userDismissedSalaryKeys: Set<String> = []
+    
+    private init() {
+        loadUserDismissed()
+        NotificationCenter.default.addObserver(
+            forName: .ICloudSyncDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.reloadUserDismissedFromStorage()
+        }
+    }
+    
+    private func loadUserDismissed() {
+        guard let data = UserDefaults.standard.data(forKey: userDismissedKey),
+              let decoded = try? JSONDecoder().decode([String].self, from: data) else {
+            userDismissedSalaryKeys = []
+            return
+        }
+        userDismissedSalaryKeys = Set(decoded)
+    }
+    
+    private func dismissalKey(jobId: UUID, paymentDate: Date) -> String {
+        let day = calendar.startOfDay(for: paymentDate)
+        let c = calendar.dateComponents([.year, .month, .day], from: day)
+        return "\(jobId.uuidString)|\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
+    }
+    
+    /// Call when the user deletes salary-sourced income so automatic sync does not recreate it.
+    func recordUserDismissedSalary(jobId: UUID, paymentDate: Date) {
+        let key = dismissalKey(jobId: jobId, paymentDate: paymentDate)
+        guard !userDismissedSalaryKeys.contains(key) else { return }
+        userDismissedSalaryKeys.insert(key)
+        persistUserDismissed()
+    }
+    
+    /// Remove dismissal entries for a job (e.g. when the job is deleted).
+    func removeDismissals(forJobId jobId: UUID) {
+        let prefix = jobId.uuidString + "|"
+        let before = userDismissedSalaryKeys.count
+        userDismissedSalaryKeys = userDismissedSalaryKeys.filter { !$0.hasPrefix(prefix) }
+        if userDismissedSalaryKeys.count != before { persistUserDismissed() }
+    }
+    
+    private func persistUserDismissed() {
+        if let encoded = try? JSONEncoder().encode(Array(userDismissedSalaryKeys).sorted()) {
+            UserDefaults.standard.set(encoded, forKey: userDismissedKey)
+            ICloudSyncService.shared.syncToCloud()
+        }
+    }
+    
+    private func isUserDismissed(jobId: UUID, paymentDate: Date) -> Bool {
+        userDismissedSalaryKeys.contains(dismissalKey(jobId: jobId, paymentDate: paymentDate))
+    }
+    
+    /// Reload from storage (e.g. after iCloud pull).
+    func reloadUserDismissedFromStorage() {
+        loadUserDismissed()
+    }
     
     /// Call on app activation or when Work data changes. Creates missing salary incomes for all jobs (today or past only).
     func syncSalaryToIncome() {
@@ -34,6 +94,7 @@ final class SalarySyncService {
             let events = pastPaymentEvents(for: job, upTo: today)
             for event in events where event.amount > 0 {
                 let source = IncomeSource.salary(jobId: event.jobId, paymentDate: event.paymentDate)
+                guard !isUserDismissed(jobId: event.jobId, paymentDate: event.paymentDate) else { continue }
                 guard !incomeService.hasIncome(for: source) else { continue }
                 
                 let income = Income(

@@ -71,7 +71,7 @@ struct MainTabView: View {
             .tint(AppColorTheme.tabActive)
         }
         .fullScreenCover(isPresented: $showingOnboarding) {
-            OnboardingView()
+            OnboardingContainerView()
         }
         .onAppear {
             checkOnboardingStatus()
