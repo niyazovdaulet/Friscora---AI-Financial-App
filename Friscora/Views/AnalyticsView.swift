@@ -32,8 +32,6 @@ struct AnalyticsView: View {
     @State private var incomeSplitSelectedSegment: IncomeSplitSegmentKind? = nil
     /// Animates segment widths (`AppAnimation.incomeSplitSegmentReveal`).
     @State private var incomeSplitBarReveal: CGFloat = 0
-    @State private var showAdviserView = false
-    @State private var pendingAIQuestion: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -56,20 +54,6 @@ struct AnalyticsView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        withAnimation(AppAnimation.sheetPresent) {
-                            showAdviserView = true
-                        }
-                    } label: {
-                        Image(systemName: "sparkles")
-                            .font(.title3)
-                            .foregroundColor(AppColorTheme.goldAccent)
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .accessibilityLabel(L10n("chat.title"))
-                    .accessibilityHint(L10n("analytics.ai.open_hint"))
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     monthPickerToolbar
                 }
@@ -105,11 +89,6 @@ struct AnalyticsView: View {
             .onChange(of: selectedTab) { _, newTab in
                 guard newTab != 1 else { return }
                 dismissAnalyticsSelections(animated: false)
-            }
-            .fullScreenCover(isPresented: $showAdviserView, onDismiss: {
-                pendingAIQuestion = nil
-            }) {
-                ChatView(referenceMonth: $viewModel.selectedMonth, initialQuestion: pendingAIQuestion)
             }
         }
     }
@@ -342,27 +321,6 @@ struct AnalyticsView: View {
                     .opacity(chartAnimated ? 1 : 0)
                     .animation(AppAnimation.analyticsHeroReveal, value: chartAnimated)
 
-                    if let explainPrompt = explainPromptForSelectedSlice(legendItems: legendItems) {
-                        Button {
-                            pendingAIQuestion = explainPrompt
-                            withAnimation(AppAnimation.sheetPresent) {
-                                showAdviserView = true
-                            }
-                        } label: {
-                            Text(L10n("analytics.ai.explain_category"))
-                                .font(AppTypography.captionMedium)
-                                .foregroundColor(AppColorTheme.accent)
-                                .padding(.horizontal, AppSpacing.s)
-                                .padding(.vertical, AppSpacing.xs)
-                                .frame(minHeight: 44)
-                                .background(
-                                    Capsule()
-                                        .fill(AppColorTheme.accent.opacity(0.12))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, AppSpacing.m)
-                    }
                 }
             }
         }
@@ -667,13 +625,6 @@ struct AnalyticsView: View {
         categoryInfo.chartTintColor
     }
     
-    private func explainPromptForSelectedSlice(legendItems: [CategoryLegendItem]) -> String? {
-        guard let selectedCategorySliceId else { return nil }
-        guard selectedCategorySliceId != "analytics_savings_slice" else { return nil }
-        guard let selectedItem = legendItems.first(where: { $0.id == selectedCategorySliceId }) else { return nil }
-        return String(format: L10n("analytics.ai.explain_category_prompt"), selectedItem.title)
-    }
-
 }
 
 // MARK: - Income split (below pie, same card)

@@ -489,77 +489,6 @@
 "edit_category.delete_confirm_title" = "Delete this category?";
 "edit_category.delete_confirm_message" = "All expenses in this category will be removed and their amounts returned to your balance. Each one will also appear in your history as income titled Deleted category.";
 
-/* Chat / AI Adviser */
-"chat.title" = "AI Adviser";
-"chat.thinking" = "Thinking...";
-"chat.disclaimer" = "Friscora provides educational financial insights, not professional advice.";
-"chat.suggested_questions" = "Suggested questions:";
-"chat.input_placeholder" = "Ask me anything...";
-"chat.try_asking" = "Try asking...";
-"chat.reference_month_trust" = "Answers use %@ - same as the chart above.";
-"chat.prompt.save_more" = "How can I save more?";
-"chat.prompt.overview" = "What is the overview of my financial situation?";
-"chat.prompt.overspending" = "Where am I spending too much?";
-"chat.prompt.reduce_expenses" = "How can I reduce my expenses?";
-"chat.prompt.priorities" = "What should I prioritize financially?";
-"chat.welcome" = "Hello! I'm your AI financial adviser. I can help you understand your spending patterns, suggest ways to save money, and provide insights based on your financial data. What would you like to know?";
-"chat.error.generic" = "Sorry, I encountered an error. Please try again later.";
-"analytics.ai.open_hint" = "Double tap to open AI insights for this month";
-"analytics.ai.explain_category" = "Explain this category";
-"analytics.ai.explain_category_prompt" = "Explain my spending in %@ this month.";
-"ai.chip.biggest_driver" = "What drove my spending this month?";
-"ai.chip.income_vs_outflows" = "Am I living within my means?";
-"ai.chip.savings_rate" = "What is my savings rate this month?";
-"ai.chip.burn_pace" = "At this pace, will I overspend income?";
-"ai.chip.top_three" = "What are my top 3 categories?";
-"ai.chip.small_purchases" = "Are small expenses adding up?";
-"ai.chip.mom_comparison" = "How does this month compare to last month?";
-"ai.chip.goal_progress" = "How are my savings goals progressing?";
-"ai.chip.where_money_goes" = "Where is my money actually going?";
-"ai.chip.savings_vs_expenses" = "Expenses vs savings this month?";
-"ai.chip.leftover" = "How much money is left after spending and savings?";
-"ai.chip.biggest_change" = "What changed the most since last month?";
-"ai.answer.action.save_more" = "Action: move a small fixed amount to goals right after income lands.";
-"ai.answer.action.pay_debt" = "Action: direct the next free amount to your highest-interest debt.";
-"ai.answer.action.control_spending" = "Action: set a hard cap for your top category for next month.";
-"ai.answer.biggest_driver.empty" = "I don't have expense entries for this month yet.";
-"ai.answer.biggest_driver" = "%1$@ is your biggest spending driver at %2$@ (%3$d%% of total expenses). %4$@";
-"ai.answer.concentration.empty" = "I need expense entries first to evaluate concentration risk.";
-"ai.answer.concentration.risky" = "This concentration is high.";
-"ai.answer.concentration.ok" = "No single category dominates right now.";
-"ai.answer.concentration" = "Your top category is %1$@ at %2$d%% of expenses. %3$@";
-"ai.answer.income_vs_outflows" = "Income: %1$@. Expenses: %2$@. Net after expenses: %3$@.";
-"ai.answer.savings_rate.no_income" = "I can't compute a savings rate because no income is recorded for this month.";
-"ai.answer.savings_rate" = "Your goal-allocation savings rate is %1$d%% (%2$@ allocated from %3$@ income).";
-"ai.answer.burn_pace.past" = "This is a closed month (%2$@). Final expenses were %1$@.";
-"ai.answer.burn_pace.current" = "Projected expenses at current pace: %1$@ vs income %2$@. Projection gap: %3$@.";
-"ai.answer.category_drill.match" = "You spent %2$@ on %1$@ this month.";
-"ai.answer.category_drill.no_match" = "I couldn't find that category in this month's spending.";
-"ai.answer.category_drill.suggest" = "I couldn't find an exact category match. Closest buckets: %1$@.";
-"ai.answer.top_three.empty" = "No category spending to rank this month yet.";
-"ai.answer.top_three" = "Top categories: %1$@.";
-"ai.answer.small_purchases" = "Using a %1$d threshold, you have %2$d small expenses totaling %3$@ (%4$d%% of monthly expenses).";
-"ai.answer.mom_comparison" = "Income change: %1$@ (%2$@). Expense change: %3$@ (%4$@).";
-"ai.answer.goals.empty" = "You don't have active goals right now.";
-"ai.answer.goals.remaining" = "remaining";
-"ai.answer.goals" = "Active goal progress: %1$@.";
-"ai.answer.single_goal.empty" = "No emergency fund goal found, and no active goal is available as a fallback.";
-"ai.answer.single_goal" = "%1$@ is at %2$d%% progress, with %3$@ remaining to target.";
-"ai.answer.what_if_cut.no_category" = "I couldn't find that category for this month, so I can't estimate the cut yet.";
-"ai.answer.what_if_cut" = "Cutting %1$d%% from %2$@ would save about %3$@ this month.";
-"ai.answer.where_money_goes.empty" = "No spending entries yet, so there is nothing to break down.";
-"ai.answer.where_money_goes" = "Most spending is concentrated in: %1$@. This is where your money is going this month.";
-"ai.answer.trust" = "This answer uses your entries for %1$@. It's educational guidance, not professional financial advice.";
-"ai.answer.savings_vs_expenses" = "This month: expenses %1$@ vs goal allocations %2$@ (income %3$@).";
-"ai.answer.leftover" = "After expenses and goal allocations, your leftover is %1$@.";
-"ai.answer.biggest_change.empty" = "I need category data from this and last month to find the biggest change.";
-"ai.answer.biggest_change" = "Biggest category shift vs last month: %1$@ at %2$@.";
-"ai.answer.zero_data" = "Analytics looks empty because there are no income or expense entries in %1$@.";
-"ai.answer.zero_data.not_empty" = "Your month is not empty; there is at least some income or spending data.";
-"ai.answer.total_income" = "Total income this month is %1$@.";
-"ai.answer.total_expenses" = "Total expenses this month are %1$@.";
-"ai.answer.fallback.generic" = "For %1$@: income %2$@, expenses %3$@, goal allocations %4$@, leftover %5$@.";
-
 /* Onboarding */
 "onboarding.welcome" = "Welcome to Friscora";
 "onboarding.subtitle" = "Your AI-powered personal finance coach";
@@ -640,6 +569,7 @@
 "onboarding.income.search_currency" = "Search currency";
 "onboarding.income.select_currency" = "Select currency";
 "onboarding.income.currency_hint" = "Choose currency";
+"onboarding.income.optional_hint" = "This step is optional. You can add income anytime in the app.";
 "onboarding.progress.step_of" = "Step %d of %d";
 "onboarding.progress.skip" = "Skip";
 "onboarding.progress.back" = "Back";
@@ -659,6 +589,7 @@
 "onboarding.security.use_biometric" = "Use %@";
 "onboarding.security.passcode_option" = "Create 4-digit passcode";
 "onboarding.security.not_now" = "Not now";
+"onboarding.security.setup_complete" = "You're all set.";
 
 /* Authentication */
 "auth.friscora" = "Friscora";
@@ -849,3 +780,4 @@
 "bulk_history.remove_all" = "Remove all";
 "bulk_history.remove_all_confirm_title" = "Remove all shifts from this apply?";
 "bulk_history.remove_all_confirm_message" = "This cannot be undone.";
+

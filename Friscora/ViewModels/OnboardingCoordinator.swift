@@ -108,7 +108,11 @@ final class OnboardingCoordinator: ObservableObject {
     @Published var securityMode: OnboardingSecurityMode = .off
     @Published var passcode: String = ""
 
-    @Published var hasInteractedWithIncome: Bool = false
+    /// After passcode is set on a device with biometrics: user must tap Enable (Face ID / Touch ID) or Skip before continuing.
+    @Published var pendingBiometricEnrollmentChoice: Bool = false
+    /// Persisted with the passcode when onboarding completes (only if the user successfully completes the biometric prompt).
+    @Published var enableBiometricUnlockOnComplete: Bool = false
+    @Published var securityUIPhase: OnboardingSecurityUIPhase = .choice
 
     @Published var didCompleteOnboarding: Bool = false
 
@@ -149,21 +153,19 @@ final class OnboardingCoordinator: ObservableObject {
         case .welcome:
             return true
         case .income:
-            return hasAtLeastOneValidIncome
+            return true
         case .goal:
             return !selectedGoals.isEmpty
         case .notifications:
             return true
         case .security:
-            return securityMode != .passcode || passcode.count == 4
+            if securityMode == .off {
+                return true
+            }
+            guard securityMode == .passcode, passcode.count == 4 else { return false }
+            return !pendingBiometricEnrollmentChoice
         case .completion:
             return true
-        }
-    }
-
-    var hasAtLeastOneValidIncome: Bool {
-        incomes.contains {
-            (CurrencyFormatter.parsedAmount(from: $0.amount) ?? 0) > 0
         }
     }
 
@@ -184,7 +186,14 @@ final class OnboardingCoordinator: ObservableObject {
 
     func skip() {
         switch currentStep {
-        case .goal, .notifications, .security:
+        case .income, .goal, .notifications:
+            advance()
+        case .security:
+            // Abandon passcode setup and continue without app lock.
+            if securityUIPhase == .choice || securityUIPhase == .passcodeEntry {
+                resetSecuritySelection()
+            }
+            guard securityUIPhase != .biometricOffer else { return }
             advance()
         default:
             break
@@ -216,6 +225,44 @@ final class OnboardingCoordinator: ObservableObject {
         }
     }
 
+    func resetSecuritySelection() {
+        securityMode = .off
+        passcode = ""
+        pendingBiometricEnrollmentChoice = false
+        enableBiometricUnlockOnComplete = false
+        securityUIPhase = .choice
+    }
+
+    func beginPasscodeSetup() {
+        securityMode = .passcode
+        passcode = ""
+        pendingBiometricEnrollmentChoice = false
+        enableBiometricUnlockOnComplete = false
+        securityUIPhase = .passcodeEntry
+    }
+
+    func markPasscodeConfirmedForBiometricOfferIfNeeded(authService: AuthenticationService = .shared) {
+        if authService.isBiometricAvailable {
+            pendingBiometricEnrollmentChoice = true
+            securityUIPhase = .biometricOffer
+        } else {
+            pendingBiometricEnrollmentChoice = false
+            securityUIPhase = .finished
+        }
+    }
+
+    func skipBiometricEnrollment() {
+        pendingBiometricEnrollmentChoice = false
+        enableBiometricUnlockOnComplete = false
+        securityUIPhase = .finished
+    }
+
+    func completeBiometricEnrollmentSuccess() {
+        pendingBiometricEnrollmentChoice = false
+        enableBiometricUnlockOnComplete = true
+        securityUIPhase = .finished
+    }
+
     private func persistIncome() {
         for entry in incomes {
             guard let amount = CurrencyFormatter.parsedAmount(from: entry.amount), amount > 0 else { continue }
@@ -239,12 +286,11 @@ final class OnboardingCoordinator: ObservableObject {
         switch securityMode {
         case .off:
             authService.setBiometricEnabled(false)
-        case .biometric:
-            authService.setBiometricEnabled(true)
         case .passcode:
             guard passcode.count == 4 else { return }
+            let enableBio = enableBiometricUnlockOnComplete && authService.isBiometricAvailable
             if authService.savePasscode(passcode) {
-                authService.setBiometricEnabled(false)
+                authService.setBiometricEnabled(enableBio)
             }
         }
     }
@@ -271,6 +317,12 @@ final class OnboardingCoordinator: ObservableObject {
 
 enum OnboardingSecurityMode: String, Codable {
     case off
-    case biometric
     case passcode
+}
+
+enum OnboardingSecurityUIPhase: Equatable {
+    case choice
+    case passcodeEntry
+    case biometricOffer
+    case finished
 }

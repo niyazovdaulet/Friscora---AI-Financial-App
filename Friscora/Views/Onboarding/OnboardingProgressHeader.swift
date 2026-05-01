@@ -87,9 +87,15 @@ struct OnboardingProgressHeader: View {
     }
 
     private var showsSkip: Bool {
-        coordinator.currentStep == .goal ||
-        coordinator.currentStep == .notifications ||
-        coordinator.currentStep == .security
+        switch coordinator.currentStep {
+        case .income, .goal, .notifications:
+            return true
+        case .security:
+            // Require an explicit Face ID / Touch ID choice after passcode; do not allow skipping past that via the header.
+            return coordinator.securityUIPhase == .choice || coordinator.securityUIPhase == .passcodeEntry
+        default:
+            return false
+        }
     }
 
     private func pillState(for step: Int) -> ProgressPill.State {

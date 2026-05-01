@@ -359,19 +359,22 @@ final class StatementParserService {
         let rawBlock = block.capturedLines.joined(separator: " | ")
         let currency = amount.currency ?? detectCurrency(in: amountLine) ?? UserProfileService.shared.profile.currency
         var direction: ParsedTransactionDirection = amount.value >= 0 ? .income : .expense
+        let hasExplicitAmountSign = amount.matchedText.range(of: #"[-+]\s*\d"#, options: .regularExpression) != nil
         let foldedBlob = block.capturedLines.joined(separator: " ").folding(
             options: [.diacriticInsensitive, .caseInsensitive],
             locale: Locale(identifier: "pl_PL")
         )
         let upperFolded = foldedBlob.uppercased()
-        if upperFolded.contains("OBCIAZENIE") {
-            direction = .expense
-        } else if upperFolded.contains("UZNANIE") {
-            direction = .income
-        } else if upperFolded.range(of: #"\bDEBIT\b"#, options: .regularExpression) != nil {
-            direction = .expense
-        } else if upperFolded.range(of: #"\bCREDIT\b"#, options: .regularExpression) != nil {
-            direction = .income
+        if !hasExplicitAmountSign {
+            if upperFolded.contains("OBCIAZENIE") {
+                direction = .expense
+            } else if upperFolded.contains("UZNANIE") {
+                direction = .income
+            } else if upperFolded.range(of: #"\bDEBIT\b"#, options: .regularExpression) != nil {
+                direction = .expense
+            } else if upperFolded.range(of: #"\bCREDIT\b"#, options: .regularExpression) != nil {
+                direction = .income
+            }
         }
 
         return ParsedStatementTransaction(
@@ -655,9 +658,10 @@ final class StatementParserService {
     /// Generic fallback parser for table-like statement rows:
     /// e.g. `03.04.26 - 200,00 ₸ Others Commission...`
     /// Used when block parser finds nothing (non-Santander layouts).
-    private func parseGenericTransactionRows(from lines: [String]) -> [ParsedStatementTransaction] {
+    func parseGenericTransactionRows(from lines: [String]) -> [ParsedStatementTransaction] {
         var parsed: [ParsedStatementTransaction] = []
         for line in lines {
+            guard lineStartsWithDate(line) else { continue }
             guard let dateHit = detectDate(in: line), let amountHit = detectAmount(in: line) else { continue }
             if abs(amountHit.value) < 0.01 { continue }
             let explicitCurrency = amountHit.currency ?? detectCurrency(in: line)
@@ -687,10 +691,23 @@ final class StatementParserService {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
             // Skip obvious headers/summary lines that happen to contain numbers.
-            let lower = line.lowercased()
-            if lower.contains("date amount transaction details") ||
-                lower.contains("transaction summary") ||
-                lower.contains("card balance") {
+            let lowered = line.folding(
+                options: [.diacriticInsensitive, .caseInsensitive],
+                locale: Locale(identifier: "en_US_POSIX")
+            ).lowercased()
+            let blockedFragments = [
+                "date amount transaction details", // EN header
+                "kuni somasy operaciya tolygyrak", // KK header (folded)
+                "data summa operaciya detali", // RU header (folded)
+                "transaction summary",
+                "card balance",
+                "kratkoe soderzhanie operacii", // RU summary
+                "kartaboiynsha operacialardyn kyskasha mazmuny", // KK summary
+                "dostupno na", // RU opening balance
+                "kolzhetimdi", // KK opening/closing balance
+                "available on" // EN opening/closing balance
+            ]
+            if blockedFragments.contains(where: { lowered.contains($0) }) {
                 continue
             }
 
@@ -712,6 +729,13 @@ final class StatementParserService {
             parsed.append(tx)
         }
         return parsed
+    }
+
+    private func lineStartsWithDate(_ line: String) -> Bool {
+        line.range(
+            of: #"^\s*\d{2}[./]\d{2}[./]\d{2,4}\b"#,
+            options: .regularExpression
+        ) != nil
     }
 
     private func parseTwoDigitYearDate(_ raw: String) -> Date? {

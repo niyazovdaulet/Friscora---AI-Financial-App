@@ -25,6 +25,11 @@ struct OnboardingIncomeView: View {
                     Text(L10n("onboarding.income.monthly_income"))
                         .font(OnboardingTheme.bodyFont(size: 14, weight: .medium))
                         .foregroundStyle(OnboardingTheme.textSecondary)
+                    Text(L10n("onboarding.income.optional_hint"))
+                        .font(OnboardingTheme.bodyFont(size: 13, weight: .regular))
+                        .foregroundStyle(OnboardingTheme.textTertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 8)
                 }
                 .onboardingEntrance(delay: 0.0)
 
@@ -47,9 +52,6 @@ struct OnboardingIncomeView: View {
                             value: $income.amount,
                             placeholder: L10n("onboarding.income.placeholder")
                         )
-                        .onChange(of: income.amount) { _, newValue in
-                            coordinator.hasInteractedWithIncome = coordinator.hasInteractedWithIncome || !newValue.isEmpty
-                        }
                     }
 
                     Button {
