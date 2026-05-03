@@ -16,7 +16,7 @@ Native **SwiftUI** iPhone app for personal finance (income, expenses, goals, ana
 | Quality | Unit tests under `FriscoraTests/`; privacy manifest present for App Store expectations |
 | i18n | `en`, `kk`, `pl`, `ru` string catalogs |
 
-## For reviewers / hiring
+## For reviewers 
 
 - **Senior iOS:** Expect SwiftUI composition, view models, services, and persistence boundaries suitable for a solo or small-team product codebase — not a tutorial sample.
 - **HR / non-technical:** Production-style finance + productivity app; **no AI product** in this codebase; Firebase is used for **specific** sync/auth flows, not as a generic “AI backend.”
