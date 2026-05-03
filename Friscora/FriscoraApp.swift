@@ -13,6 +13,24 @@ import FirebaseCore
 struct FriscoraApp: App {
     init() {
         FirebaseApp.configure()
+        Self.configureNestedTabBarAppearance()
+    }
+
+    /// Nested `TabView`s (e.g. Goals, Add flow) still use `UITabBar`; root chrome is `CustomTabBar`.
+    private static func configureNestedTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(AppColorTheme.customTabBarChrome)
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColorTheme.customTabBarAccent)
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: UIColor(AppColorTheme.customTabBarAccent)
+        ]
+        appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColorTheme.customTabBarInactive)
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: UIColor(AppColorTheme.customTabBarInactive)
+        ]
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 
     @StateObject private var appState = AppState()
@@ -86,9 +104,13 @@ struct AppContentView: View {
             }
         }
         .onChange(of: scenePhase) { phase in
+            if phase == .inactive || phase == .background {
+                authService.markAppBecameInactive()
+            }
+
             if phase == .active {
                 if hasCheckedAuth {
-                    checkAuthentication()
+                    checkAuthenticationOnResume()
                 }
                 // Pull from iCloud when app becomes active (e.g. returning from another device)
                 DispatchQueue.global(qos: .utility).async {
@@ -117,6 +139,7 @@ struct AppContentView: View {
     private func checkAuthentication() {
         let profile = UserProfileService.shared.profile
         guard profile.isAuthenticationEnabled else {
+            authService.resetResumeTimingState()
             showAuthentication = false
             return
         }
@@ -129,6 +152,26 @@ struct AppContentView: View {
             showAuthentication = true
         } else {
             showAuthentication = false
+        }
+    }
+
+    private func checkAuthenticationOnResume() {
+        let profile = UserProfileService.shared.profile
+        guard profile.isAuthenticationEnabled else {
+            authService.resetResumeTimingState()
+            showAuthentication = false
+            return
+        }
+
+        if authService.shouldRequireAuthenticationOnAppActive(securityEnabled: profile.isAuthenticationEnabled) {
+            dismissKeyboard()
+            withAnimation(AppAnimation.sheetPresent) {
+                showAuthentication = true
+            }
+        } else {
+            withAnimation(AppAnimation.sheetPresent) {
+                showAuthentication = false
+            }
         }
     }
     

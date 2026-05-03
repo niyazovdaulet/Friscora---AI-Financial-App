@@ -286,6 +286,7 @@ final class OnboardingCoordinator: ObservableObject {
         switch securityMode {
         case .off:
             authService.setBiometricEnabled(false)
+            authService.clearAuthentication()
         case .passcode:
             guard passcode.count == 4 else { return }
             let enableBio = enableBiometricUnlockOnComplete && authService.isBiometricAvailable

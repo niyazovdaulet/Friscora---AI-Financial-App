@@ -83,4 +83,11 @@ final class ScheduleShareCoordinator: ObservableObject {
         ScheduleShareLogging.trace("consumePendingInvite")
         pendingInvite = nil
     }
+
+    /// Clears deep-link invite routing (Erase all data).
+    func resetInviteRoutingStateForDataErase() {
+        pendingInvite = nil
+        deferredInvitePayload = nil
+        shouldOpenScheduleTab = false
+    }
 }

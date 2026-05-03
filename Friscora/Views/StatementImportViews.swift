@@ -32,9 +32,9 @@ private enum SuggestedCategoryPresenter {
 
     static func confidenceTitle(_ band: CategorizationConfidenceBand) -> String {
         switch band {
-        case .high: return "High confidence"
-        case .medium: return "Medium confidence"
-        case .low: return "Low confidence"
+        case .high: return L10n("statement.import.categorization.confidence.high")
+        case .medium: return L10n("statement.import.categorization.confidence.medium")
+        case .low: return L10n("statement.import.categorization.confidence.low")
         }
     }
 
@@ -68,6 +68,7 @@ private struct SuggestedCategoryChip: View {
 
 struct StatementImportHomeView: View {
     @Environment(\.dismiss) private var dismiss
+    @Binding var selectedTab: Int
     @StateObject private var viewModel = StatementImportHomeViewModel()
 
     var body: some View {
@@ -88,17 +89,21 @@ struct StatementImportHomeView: View {
                     .padding(AppSpacing.m)
                 }
             }
-            .navigationTitle("Statement Import")
+            .navigationTitle(L10n("statement.import.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n("common.done")) { dismiss() }
                 }
             }
             .sheet(isPresented: $viewModel.showOnboarding) {
                 StatementImportPrivacySheet(
                     dontShowAgain: $viewModel.dontShowOnboardingAgain,
                     onContinue: { viewModel.completeOnboarding() },
-                    onNotNow: { viewModel.skipOnboarding() }
+                    onNotNow: {
+                        viewModel.skipOnboarding()
+                        selectedTab = 0
+                        dismiss()
+                    }
                 )
                 .presentationDetents([.medium, .large])
                 .presentationCornerRadius(24)
@@ -117,7 +122,7 @@ struct StatementImportHomeView: View {
                     viewModel.loadFiles()
                 }
             }
-            .alert("Statement Import", isPresented: Binding(
+            .alert(L10n("statement.import.title"), isPresented: Binding(
                 get: {
                     if case .message = viewModel.activeAlert { return true }
                     return false
@@ -126,7 +131,7 @@ struct StatementImportHomeView: View {
                     if !showing, case .message = viewModel.activeAlert { viewModel.activeAlert = nil }
                 }
             )) {
-                Button("OK", role: .cancel) {}
+                Button(L10n("common.ok"), role: .cancel) {}
             } message: {
                 if case .message(let message) = viewModel.activeAlert {
                     Text(message)
@@ -134,7 +139,7 @@ struct StatementImportHomeView: View {
                     Text("")
                 }
             }
-            .alert("Rename Statement", isPresented: Binding(
+            .alert(L10n("statement.import.rename_title"), isPresented: Binding(
                 get: {
                     if case .rename = viewModel.activeAlert { return true }
                     return false
@@ -143,11 +148,11 @@ struct StatementImportHomeView: View {
                     if !showing, case .rename = viewModel.activeAlert { viewModel.activeAlert = nil }
                 }
             )) {
-                TextField("New name", text: $viewModel.renameText)
-                Button("Cancel", role: .cancel) {}
-                Button("Save") { viewModel.confirmRename() }
+                TextField(L10n("statement.import.rename_placeholder"), text: $viewModel.renameText)
+                Button(L10n("common.cancel"), role: .cancel) {}
+                Button(L10n("common.save")) { viewModel.confirmRename() }
             }
-            .alert("Delete statement?", isPresented: Binding(
+            .alert(L10n("statement.import.delete_confirm_title"), isPresented: Binding(
                 get: {
                     if case .delete = viewModel.activeAlert { return true }
                     return false
@@ -156,17 +161,17 @@ struct StatementImportHomeView: View {
                     if !showing, case .delete = viewModel.activeAlert { viewModel.activeAlert = nil }
                 }
             )) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) { viewModel.deleteConfirmed() }
+                Button(L10n("common.cancel"), role: .cancel) {}
+                Button(L10n("common.delete"), role: .destructive) { viewModel.deleteConfirmed() }
             } message: {
-                Text("This deletes the PDF and its review session from this device, and removes every expense and income that was imported from this statement from your history and dashboard.")
+                Text(L10n("statement.import.delete_confirm_message"))
             }
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: AppSpacing.xs) {
-            Text("Import transactions from bank statement PDFs")
+            Text(L10n("statement.import.header_subtitle"))
                 .font(AppTypography.bodySecondary)
                 .foregroundColor(AppColorTheme.textSecondary)
         }
@@ -175,7 +180,7 @@ struct StatementImportHomeView: View {
     private var privacyChip: some View {
         HStack(spacing: AppSpacing.xs) {
             Image(systemName: "lock.shield")
-            Text("On-device only")
+            Text(L10n("statement.import.privacy_chip"))
         }
         .font(AppTypography.captionMedium)
         .foregroundColor(AppColorTheme.accent)
@@ -185,21 +190,21 @@ struct StatementImportHomeView: View {
     }
 
     private var primaryCTA: some View {
-        Button("Import PDF Statement") { viewModel.showFileImporter = true }
+        Button(L10n("statement.import.import_pdf")) { viewModel.showFileImporter = true }
             .buttonStyle(PrimaryCTAButtonStyle())
     }
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: AppSpacing.s) {
-            Text("No statements imported yet")
+            Text(L10n("statement.import.empty_title"))
                 .font(AppTypography.cardTitle)
                 .foregroundColor(AppColorTheme.textPrimary)
-            Text("Upload a PDF bank statement from your bank app and Friscora will detect your transactions for review.")
+            Text(L10n("statement.import.empty_body"))
                 .font(AppTypography.bodySecondary)
                 .foregroundColor(AppColorTheme.textSecondary)
-            Button("Import PDF Statement") { viewModel.showFileImporter = true }
+            Button(L10n("statement.import.import_pdf")) { viewModel.showFileImporter = true }
                 .buttonStyle(PrimaryCTAButtonStyle())
-            Text("Only PDF bank statements are supported for now")
+            Text(L10n("statement.import.supported_footer"))
                 .font(AppTypography.caption)
                 .foregroundColor(AppColorTheme.textTertiary)
         }
@@ -213,7 +218,7 @@ struct StatementImportHomeView: View {
 
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.s) {
-            Text("Recent Imports")
+            Text(L10n("statement.import.recent_section"))
                 .font(AppTypography.cardTitle)
                 .foregroundColor(AppColorTheme.textPrimary)
 
@@ -229,7 +234,7 @@ struct StatementImportHomeView: View {
                                 .foregroundColor(AppColorTheme.textTertiary)
                         }
                         Spacer()
-                        Text(file.status.rawValue)
+                        Text(file.status.localizedName)
                             .font(AppTypography.captionMedium)
                             .foregroundColor(AppColorTheme.accent)
                             .padding(.horizontal, 8)
@@ -237,7 +242,7 @@ struct StatementImportHomeView: View {
                             .background(Capsule().fill(AppColorTheme.accent.opacity(0.15)))
                     }
                     HStack {
-                        Text("\(file.transactionCount) tx")
+                        Text(String(format: L10n("statement.import.transaction_count_format"), file.transactionCount))
                         Spacer()
                         Text("+\(formattedImportTotal(file.totalIncome, for: file))")
                             .foregroundColor(AppColorTheme.incomeIndicator)
@@ -248,16 +253,16 @@ struct StatementImportHomeView: View {
                     .foregroundColor(AppColorTheme.textSecondary)
 
                     HStack(spacing: AppSpacing.s) {
-                        Button("Open") { viewModel.openFile(file) }
+                        Button(L10n("statement.import.open")) { viewModel.openFile(file) }
                             .buttonStyle(SecondaryCTAButtonStyle())
-                        Button("Re-scan") { viewModel.rescan(file) }
+                        Button(L10n("statement.import.rescan")) { viewModel.rescan(file) }
                             .buttonStyle(SecondaryCTAButtonStyle())
                     }
                     Menu {
-                        Button("Rename") { viewModel.beginRename(file) }
-                        Button("Delete", role: .destructive) { viewModel.confirmDelete(file) }
+                        Button(L10n("statement.import.rename")) { viewModel.beginRename(file) }
+                        Button(L10n("common.delete"), role: .destructive) { viewModel.confirmDelete(file) }
                     } label: {
-                        Label("Manage", systemImage: "ellipsis.circle")
+                        Label(L10n("statement.import.manage"), systemImage: "ellipsis.circle")
                             .font(AppTypography.captionMedium)
                             .foregroundColor(AppColorTheme.textSecondary)
                     }
@@ -292,27 +297,27 @@ struct StatementImportPrivacySheet: View {
         ZStack {
             AppColorTheme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: AppSpacing.m) {
-                Text("Import bank statements securely")
+                Text(L10n("statement.import.privacy_sheet_title"))
                     .font(AppTypography.cardTitle)
                     .foregroundColor(AppColorTheme.textPrimary)
                 Group {
-                    Text("• Import PDF statements from your bank")
-                    Text("• Friscora automatically detects transactions")
-                    Text("• Review everything before adding")
-                    Text("• Processing happens on your device")
-                    Text("• Your files are never uploaded to servers")
-                    Text("• You can delete imported statements anytime")
+                    Text(L10n("statement.import.privacy_bullet.pdf"))
+                    Text(L10n("statement.import.privacy_bullet.detect"))
+                    Text(L10n("statement.import.privacy_bullet.review"))
+                    Text(L10n("statement.import.privacy_bullet.on_device"))
+                    Text(L10n("statement.import.privacy_bullet.no_upload"))
+                    Text(L10n("statement.import.privacy_bullet.delete_anytime"))
                 }
                 .font(AppTypography.bodySecondary)
                 .foregroundColor(AppColorTheme.textSecondary)
 
-                Toggle("Don't show again", isOn: $dontShowAgain)
+                Toggle(L10n("statement.import.dont_show_again"), isOn: $dontShowAgain)
                     .tint(AppColorTheme.accent)
                     .foregroundColor(AppColorTheme.textPrimary)
 
-                Button("Continue", action: onContinue)
+                Button(L10n("statement.import.continue"), action: onContinue)
                     .buttonStyle(PrimaryCTAButtonStyle())
-                Button("Not now", action: onNotNow)
+                Button(L10n("statement.import.not_now"), action: onNotNow)
                     .buttonStyle(SecondaryCTAButtonStyle())
             }
             .padding(AppSpacing.m)
@@ -376,7 +381,7 @@ struct StatementScanningView: View {
                     Text(failed)
                         .font(AppTypography.bodySecondary)
                         .foregroundColor(AppColorTheme.negative)
-                    Button("Close") { dismiss() }
+                    Button(L10n("statement.import.close")) { dismiss() }
                         .buttonStyle(SecondaryCTAButtonStyle())
                 }
             }
@@ -411,21 +416,21 @@ struct StatementImportReviewView: View {
                 }
                 bottomCTA
             }
-            .navigationTitle("Review Transactions")
+            .navigationTitle(L10n("statement.import.review_title"))
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n("statement.import.close")) { dismiss() } }
             }
             .sheet(item: $viewModel.editingTransaction) { tx in
                 StatementTransactionEditSheet(transaction: tx) { updated in
                     viewModel.updateTransaction(updated)
                 }
             }
-            .confirmationDialog("Potential duplicates detected", isPresented: $viewModel.showDuplicateDialog) {
-                Button("Skip Duplicates") { viewModel.commit(skipDuplicates: true) }
-                Button("Import Anyway") { viewModel.commit(skipDuplicates: false) }
-                Button("Review Selection", role: .cancel) {}
+            .confirmationDialog(L10n("statement.import.duplicates.title"), isPresented: $viewModel.showDuplicateDialog) {
+                Button(L10n("statement.import.duplicates.skip")) { viewModel.commit(skipDuplicates: true) }
+                Button(L10n("statement.import.duplicates.import_anyway")) { viewModel.commit(skipDuplicates: false) }
+                Button(L10n("statement.import.duplicates.review"), role: .cancel) {}
             } message: {
-                Text("\(viewModel.duplicateWarnings.count) transactions may already exist.")
+                Text(duplicateDialogMessage(count: viewModel.duplicateWarnings.count))
             }
             .sheet(isPresented: $viewModel.showSuccessSheet) {
                 StatementImportSuccessView(importedCount: viewModel.importedCount) {
@@ -433,15 +438,27 @@ struct StatementImportReviewView: View {
                     dismiss()
                 }
             }
-            .alert("Statement Import", isPresented: Binding(
+            .alert(L10n("statement.import.title"), isPresented: Binding(
                 get: { viewModel.postCommitMessage != nil },
                 set: { showing in if !showing { viewModel.postCommitMessage = nil } }
             )) {
-                Button("OK", role: .cancel) {}
+                Button(L10n("common.ok"), role: .cancel) {}
             } message: {
                 Text(viewModel.postCommitMessage ?? "")
             }
         }
+    }
+
+    private func duplicateDialogMessage(count: Int) -> String {
+        count == 1
+            ? L10n("statement.import.duplicates.message_one")
+            : String(format: L10n("statement.import.duplicates.message_many"), count)
+    }
+
+    private func possibleDuplicatesLabel(count: Int) -> String {
+        count == 1
+            ? L10n("statement.import.review.possible_duplicates_one")
+            : String(format: L10n("statement.import.review.possible_duplicates_many"), count)
     }
 
     private var summaryCard: some View {
@@ -449,14 +466,20 @@ struct StatementImportReviewView: View {
             Text(viewModel.file.displayName)
                 .font(AppTypography.bodySemibold)
                 .foregroundColor(AppColorTheme.textPrimary)
-            Text("Detected: \(viewModel.session.parsedTransactions.count) • Selected: \(viewModel.selectedCount)")
+            Text(
+                String(
+                    format: L10n("statement.import.review.detected_selected"),
+                    viewModel.session.parsedTransactions.count,
+                    viewModel.selectedCount
+                )
+            )
                 .font(AppTypography.captionMedium)
                 .foregroundColor(AppColorTheme.textSecondary)
             HStack {
-                Text("Income \(viewModel.selectedIncomeDisplayText)")
+                Text(String(format: L10n("statement.import.review.income_label"), viewModel.selectedIncomeDisplayText))
                     .foregroundColor(AppColorTheme.incomeIndicator)
                 Spacer()
-                Text("Expenses \(viewModel.selectedExpenseDisplayText)")
+                Text(String(format: L10n("statement.import.review.expenses_label"), viewModel.selectedExpenseDisplayText))
                     .foregroundColor(AppColorTheme.expenseIndicator)
             }
             .font(AppTypography.captionMedium)
@@ -465,10 +488,19 @@ struct StatementImportReviewView: View {
                     .font(AppTypography.caption)
                     .foregroundColor(AppColorTheme.textTertiary)
             }
+            if !viewModel.session.warnings.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(viewModel.session.warnings.enumerated()), id: \.offset) { _, warning in
+                        Text(localizedStatementImportSessionWarning(warning))
+                            .font(AppTypography.caption)
+                            .foregroundColor(AppColorTheme.textTertiary)
+                    }
+                }
+            }
             HStack(spacing: 8) {
-                Label("Processed on-device", systemImage: "lock.shield")
+                Label(L10n("statement.import.review.processed_on_device"), systemImage: "lock.shield")
                 if !viewModel.duplicateWarnings.isEmpty {
-                    Label("\(viewModel.duplicateWarnings.count) possible duplicates", systemImage: "exclamationmark.triangle")
+                    Label(possibleDuplicatesLabel(count: viewModel.duplicateWarnings.count), systemImage: "exclamationmark.triangle")
                 }
             }
             .font(AppTypography.caption)
@@ -480,9 +512,9 @@ struct StatementImportReviewView: View {
 
     private var actionBar: some View {
         HStack(spacing: AppSpacing.s) {
-            Button("Select all") { viewModel.selectAll() }
-            Button("Deselect all") { viewModel.deselectAll() }
-            Button("Remove selected", role: .destructive) { viewModel.removeSelected() }
+            Button(L10n("statement.import.review.select_all")) { viewModel.selectAll() }
+            Button(L10n("statement.import.review.deselect_all")) { viewModel.deselectAll() }
+            Button(L10n("statement.import.review.remove_selected"), role: .destructive) { viewModel.removeSelected() }
         }
         .font(AppTypography.captionMedium)
         .foregroundColor(AppColorTheme.textSecondary)
@@ -509,12 +541,12 @@ struct StatementImportReviewView: View {
                         HStack {
                             Text(tx.date.formatted(date: .abbreviated, time: .omitted))
                             Text(tx.currency)
-                            Text(tx.direction == .income ? "Income" : "Expense")
+                            Text(tx.direction == .income ? L10n("statement.import.direction.income") : L10n("statement.import.direction.expense"))
                         }
                         .font(AppTypography.caption)
                         .foregroundColor(AppColorTheme.textTertiary)
                         if isDuplicate {
-                            Label("Possible duplicate", systemImage: "exclamationmark.triangle.fill")
+                            Label(L10n("statement.import.duplicate.possible"), systemImage: "exclamationmark.triangle.fill")
                                 .font(AppTypography.caption)
                                 .foregroundColor(AppColorTheme.negative)
                         }
@@ -541,7 +573,7 @@ struct StatementImportReviewView: View {
                     Button(role: .destructive) {
                         viewModel.removeTransaction(tx)
                     } label: {
-                        Label("Remove", systemImage: "trash")
+                        Label(L10n("common.delete"), systemImage: "trash")
                     }
                 }
             }
@@ -550,7 +582,7 @@ struct StatementImportReviewView: View {
 
     private var bottomCTA: some View {
         VStack(spacing: 8) {
-            Button("Import Selected Transactions (\(viewModel.selectedCount))") {
+            Button(String(format: L10n("statement.import.review.import_selected_format"), viewModel.selectedCount)) {
                 viewModel.beginCommit()
             }
             .buttonStyle(PrimaryCTAButtonStyle())
@@ -573,48 +605,70 @@ struct StatementTransactionEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Description") { TextField("Description", text: $viewModel.description) }
-                Section("Amount") { TextField("0.00", text: $viewModel.amount).keyboardType(.decimalPad) }
-                Section("Date") { DatePicker("Date", selection: $viewModel.date, displayedComponents: .date) }
-                Section("Currency") { TextField("USD", text: $viewModel.currency) }
-                Section("Type") {
-                    Picker("Type", selection: $viewModel.direction) {
-                        Text("Income").tag(ParsedTransactionDirection.income)
-                        Text("Expense").tag(ParsedTransactionDirection.expense)
+                Section {
+                    TextField(L10n("statement.import.edit.description_placeholder"), text: $viewModel.description)
+                } header: {
+                    Text(L10n("statement.import.edit.description_section"))
+                }
+                Section {
+                    TextField(L10n("statement.import.edit.amount_placeholder"), text: $viewModel.amount).keyboardType(.decimalPad)
+                } header: {
+                    Text(L10n("statement.import.edit.amount_section"))
+                }
+                Section {
+                    DatePicker(L10n("statement.import.edit.date_label"), selection: $viewModel.date, displayedComponents: .date)
+                } header: {
+                    Text(L10n("statement.import.edit.date_section"))
+                }
+                Section {
+                    TextField(L10n("statement.import.edit.currency_placeholder"), text: $viewModel.currency)
+                } header: {
+                    Text(L10n("statement.import.edit.currency_section"))
+                }
+                Section {
+                    Picker(L10n("statement.import.edit.type_label"), selection: $viewModel.direction) {
+                        Text(L10n("statement.import.direction.income")).tag(ParsedTransactionDirection.income)
+                        Text(L10n("statement.import.direction.expense")).tag(ParsedTransactionDirection.expense)
                     }
                     .pickerStyle(.segmented)
+                } header: {
+                    Text(L10n("statement.import.edit.type_section"))
                 }
-                Section("Category") {
+                Section {
                     if viewModel.direction == .expense {
-                        Picker("Category", selection: $viewModel.selectedCategoryID) {
+                        Picker(L10n("statement.import.edit.category_label"), selection: $viewModel.selectedCategoryID) {
                             ForEach(viewModel.categoryOptions) { option in
                                 Text(option.title).tag(option.id)
                             }
                         }
                     } else {
-                        Text("Not used for income imports yet")
+                        Text(L10n("statement.import.edit.income_category_hint"))
                             .foregroundColor(AppColorTheme.textSecondary)
                     }
+                } header: {
+                    Text(L10n("statement.import.edit.category_section"))
                 }
                 if let suggestion = SuggestedCategoryPresenter.display(for: viewModel.previewTransaction) {
-                    Section("Suggested Category (Read-only)") {
+                    Section {
                         SuggestedCategoryChip(display: suggestion)
                         if let source = viewModel.previewTransaction.categorizationSource {
                             Text(sourceLabel(source))
                                 .font(AppTypography.caption)
                                 .foregroundColor(AppColorTheme.textTertiary)
                         }
+                    } header: {
+                        Text(L10n("statement.import.edit.suggested_category_section"))
                     }
                 }
                 if let error = viewModel.error {
                     Section { Text(error).foregroundColor(AppColorTheme.negative) }
                 }
             }
-            .navigationTitle("Edit Transaction")
+            .navigationTitle(L10n("statement.import.edit.transaction_title"))
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n("common.cancel")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(L10n("common.save")) {
                         guard let updated = viewModel.buildUpdated() else { return }
                         onSave(updated)
                         dismiss()
@@ -626,9 +680,9 @@ struct StatementTransactionEditSheet: View {
 
     private func sourceLabel(_ source: CategorizationSource) -> String {
         switch source {
-        case .custom: return "Source: Custom category"
-        case .builtIn: return "Source: Built-in category"
-        case .manual: return "Source: Manual override"
+        case .custom: return L10n("statement.import.source.custom")
+        case .builtIn: return L10n("statement.import.source.builtin")
+        case .manual: return L10n("statement.import.source.manual")
         }
     }
 }
@@ -637,6 +691,12 @@ struct StatementImportSuccessView: View {
     let importedCount: Int
     let onDone: () -> Void
 
+    private func importedHeadline(count: Int) -> String {
+        count == 1
+            ? L10n("statement.import.success_one")
+            : String(format: L10n("statement.import.success_many"), count)
+    }
+
     var body: some View {
         ZStack {
             AppColorTheme.background.ignoresSafeArea()
@@ -644,14 +704,14 @@ struct StatementImportSuccessView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 56, weight: .semibold))
                     .foregroundColor(AppColorTheme.accent)
-                Text("\(importedCount) transactions imported")
+                Text(importedHeadline(count: importedCount))
                     .font(AppTypography.cardTitle)
                     .foregroundColor(AppColorTheme.textPrimary)
-                Text("Your balance, recent activity, and analytics have been updated.")
+                Text(L10n("statement.import.success_subtitle"))
                     .font(AppTypography.bodySecondary)
                     .foregroundColor(AppColorTheme.textSecondary)
                     .multilineTextAlignment(.center)
-                Button("Done", action: onDone)
+                Button(L10n("common.done"), action: onDone)
                     .buttonStyle(PrimaryCTAButtonStyle())
             }
             .padding(AppSpacing.m)

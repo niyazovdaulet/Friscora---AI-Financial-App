@@ -279,6 +279,7 @@
 				INFOPLIST_KEY_CFBundleURLTypes_0_CFBundleURLName = "daukas-personal.Friscora.share";
 				INFOPLIST_KEY_CFBundleURLTypes_0_CFBundleURLSchemes_0 = friscora;
 				INFOPLIST_KEY_FRISCORA_APP_STORE_ID = YOUR_APP_STORE_ID;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Friscora uses Face ID to securely authenticate and protect your financial data.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Friscora needs access to your photo library so you can attach a screenshot when sending feedback.";
@@ -293,7 +294,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.4;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "daukas-personal.Friscora";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -325,6 +326,7 @@
 				INFOPLIST_KEY_CFBundleURLTypes_0_CFBundleURLName = "daukas-personal.Friscora.share";
 				INFOPLIST_KEY_CFBundleURLTypes_0_CFBundleURLSchemes_0 = friscora;
 				INFOPLIST_KEY_FRISCORA_APP_STORE_ID = YOUR_APP_STORE_ID;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Friscora uses Face ID to securely authenticate and protect your financial data.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Friscora needs access to your photo library so you can attach a screenshot when sending feedback.";
@@ -339,7 +341,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.4;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "daukas-personal.Friscora";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

@@ -10,12 +10,6 @@ import SwiftUI
 /// Amounts below this are treated as zero for analytics trend placeholders (avoids noisy −100% MoM).
 private let analyticsTrendMetricZeroEpsilon: Double = 0.005
 
-private enum IncomeSplitSegmentKind: Equatable {
-    case expenses
-    case savings
-    case remaining
-}
-
 struct AnalyticsView: View {
     @Binding var selectedTab: Int
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -28,10 +22,6 @@ struct AnalyticsView: View {
     @State private var trendStripAppeared = false
     /// Selected pie slice id (matches `CategoryPieSliceModel.id`, including `analytics_savings_slice`).
     @State private var selectedCategorySliceId: String? = nil
-    /// Selected slice on the income split capsule (tooltip + legend sync).
-    @State private var incomeSplitSelectedSegment: IncomeSplitSegmentKind? = nil
-    /// Animates segment widths (`AppAnimation.incomeSplitSegmentReveal`).
-    @State private var incomeSplitBarReveal: CGFloat = 0
 
     var body: some View {
         NavigationStack {
@@ -59,50 +49,58 @@ struct AnalyticsView: View {
                 }
             }
             .onAppear {
-                viewModel.updateData()
-                chartAnimated = false
-                trendStripAppeared = true
-                let slices = currentPieSlices()
-                pieSliceProgress = Array(repeating: 0, count: slices.count)
-                withAnimation(AppAnimation.analyticsHeroReveal) { chartAnimated = true }
-                scheduleStaggeredPieFill(slices: slices)
-                scheduleIncomeSplitBarReveal()
+                if selectedTab == 1 {
+                    playAnalyticsTabEntranceAnimations()
+                }
             }
             .onChange(of: viewModel.selectedMonth) { _, newMonth in
                 HapticHelper.lightImpact()
                 FeedbackService.shared.setLastAnalyticsMonth(newMonth)
                 viewModel.updateData()
                 selectedCategorySliceId = nil
-                incomeSplitSelectedSegment = nil
-                incomeSplitBarReveal = 0
                 chartAnimated = false
                 let slices = currentPieSlices()
                 pieSliceProgress = Array(repeating: 0, count: slices.count)
                 withAnimation(AppAnimation.analyticsHeroReveal) { chartAnimated = true }
                 scheduleStaggeredPieFill(slices: slices)
-                scheduleIncomeSplitBarReveal()
             }
             .onReceive(ExpenseService.shared.$expenses) { _ in viewModel.updateData() }
             .onReceive(IncomeService.shared.$incomes) { _ in viewModel.updateData() }
             .onReceive(GoalService.shared.$goals) { _ in viewModel.updateData() }
             .onReceive(GoalService.shared.$activities) { _ in viewModel.updateData() }
             .onChange(of: selectedTab) { _, newTab in
-                guard newTab != 1 else { return }
-                dismissAnalyticsSelections(animated: false)
+                if newTab == 1 {
+                    playAnalyticsTabEntranceAnimations()
+                } else {
+                    dismissAnalyticsSelections(animated: false)
+                }
             }
         }
     }
 
+    /// Runs hero chart animations when Analytics becomes visible. Required because `MainTabView` keeps tab roots in an opacity `ZStack`, so `onAppear` does not repeat when switching back to this tab.
+    private func playAnalyticsTabEntranceAnimations() {
+        // When opened from Dashboard “Show more”, align analytics month with the dashboard month (one-shot via `AnalyticsMonthHandoff`). Otherwise keep the user’s current analytics month.
+        if let handoffMonth = AnalyticsMonthHandoff.consumePendingMonth(calendar: viewModel.calendar, availableMonths: viewModel.availableMonths) {
+            viewModel.selectedMonth = handoffMonth
+        }
+        viewModel.updateData()
+        chartAnimated = false
+        trendStripAppeared = true
+        let slices = currentPieSlices()
+        pieSliceProgress = Array(repeating: 0, count: slices.count)
+        withAnimation(AppAnimation.analyticsHeroReveal) { chartAnimated = true }
+        scheduleStaggeredPieFill(slices: slices)
+    }
+
     private func dismissAnalyticsSelections(animated: Bool = true) {
-        guard selectedCategorySliceId != nil || incomeSplitSelectedSegment != nil else { return }
+        guard selectedCategorySliceId != nil else { return }
         if animated {
             withAnimation(AppAnimation.snappy) {
                 selectedCategorySliceId = nil
-                incomeSplitSelectedSegment = nil
             }
         } else {
             selectedCategorySliceId = nil
-            incomeSplitSelectedSegment = nil
         }
     }
 
@@ -112,15 +110,6 @@ struct AnalyticsView: View {
             withAnimation(AppAnimation.snappy) { selectedCategorySliceId = nil }
         } else {
             selectedCategorySliceId = nil
-        }
-    }
-
-    private func clearIncomeSplitSelectionOnly(animated: Bool = true) {
-        guard incomeSplitSelectedSegment != nil else { return }
-        if animated {
-            withAnimation(AppAnimation.incomeSplitCallout) { incomeSplitSelectedSegment = nil }
-        } else {
-            incomeSplitSelectedSegment = nil
         }
     }
 
@@ -185,15 +174,6 @@ struct AnalyticsView: View {
                     next[sliceIdx] = 1
                     pieSliceProgress = next
                 }
-            }
-        }
-    }
-
-    private func scheduleIncomeSplitBarReveal() {
-        incomeSplitBarReveal = 0
-        DispatchQueue.main.async {
-            withAnimation(AppAnimation.incomeSplitSegmentReveal) {
-                incomeSplitBarReveal = 1
             }
         }
     }
@@ -290,7 +270,7 @@ struct AnalyticsView: View {
                             slices: slices,
                             legendItems: legendItems,
                             selectedSliceId: $selectedCategorySliceId,
-                            onSliceSelectionCommitted: { clearIncomeSplitSelectionOnly() }
+                            onSliceSelectionCommitted: {}
                         )
                         // Same horizontal inset as `EmptyStateView(compact:)` inside the card; vertical layout on phones avoids overflow.
                         .padding(.horizontal, AppSpacing.m)
@@ -301,23 +281,44 @@ struct AnalyticsView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(L10n("dashboard.spending_by_category"))
 
-                    AnalyticsIncomeSplitSection(
-                        selectedSegment: $incomeSplitSelectedSegment,
-                        barRevealProgress: $incomeSplitBarReveal,
-                        currencyCode: UserProfileService.shared.profile.currency,
-                        monthlyIncome: viewModel.monthlyIncome,
-                        expenses: expenses,
-                        savings: savings,
-                        remaining: viewModel.incomeSplitUnallocated,
-                        showRemainingBar: viewModel.incomeSplitShowsRemainingBar,
-                        segmentDenominator: viewModel.incomeSplitSegmentDenominator,
-                        showOverflowHint: viewModel.incomeSplitShowsOverflowHint,
-                        allocatedOutflows: viewModel.incomeSplitAllocatedOutflows,
-                        dismissPieOnIncomeControlTap: { clearPieSelectionOnly() },
-                        dismissSelectionsOnTapOutsideBar: { dismissAnalyticsSelections() },
-                        dismissIncomeCalloutFromTooltipTap: { clearIncomeSplitSelectionOnly() }
+                    let currency = UserProfileService.shared.profile.currency
+                    let allocatedFormatted = CurrencyFormatter.format(
+                        viewModel.incomeSplitAllocatedOutflows,
+                        currencyCode: currency
                     )
+                    let incomeFormatted = CurrencyFormatter.format(viewModel.monthlyIncome, currencyCode: currency)
+                    VStack(alignment: .leading, spacing: AppSpacing.s) {
+                        Divider()
+                            .background(AppColorTheme.cardBorder.opacity(0.85))
+                            .padding(.bottom, AppSpacing.xs)
+
+                        if viewModel.incomeSplitShowsRemainingBar {
+                            Text(String(format: L10n("analytics.income_split.summary_spent_of_income"), allocatedFormatted, incomeFormatted))
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColorTheme.textTertiary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                .multilineTextAlignment(.trailing)
+                                .accessibilityLabel(
+                                    String(format: L10n("analytics.income_split.summary_spent_of_income"), allocatedFormatted, incomeFormatted)
+                                )
+                        } else {
+                            Text(String(format: L10n("analytics.income_split.summary_allocated_only"), allocatedFormatted))
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColorTheme.textTertiary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                .multilineTextAlignment(.trailing)
+                        }
+
+                        if viewModel.incomeSplitShowsOverflowHint {
+                            Text(L10n("analytics.income_split.overflow_hint"))
+                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColorTheme.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                     .padding(.horizontal, AppSpacing.m)
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissAnalyticsSelections() }
                     .opacity(chartAnimated ? 1 : 0)
                     .animation(AppAnimation.analyticsHeroReveal, value: chartAnimated)
 
@@ -625,385 +626,6 @@ struct AnalyticsView: View {
         categoryInfo.chartTintColor
     }
     
-}
-
-// MARK: - Income split (below pie, same card)
-
-/// iOS Storage–style capsule: summary line, tappable segments with callout, compact legend (amounts on tap only).
-private struct AnalyticsIncomeSplitSection: View {
-    @Binding var selectedSegment: IncomeSplitSegmentKind?
-    @Binding var barRevealProgress: CGFloat
-    let currencyCode: String
-    let monthlyIncome: Double
-    let expenses: Double
-    let savings: Double
-    let remaining: Double
-    let showRemainingBar: Bool
-    let segmentDenominator: Double
-    let showOverflowHint: Bool
-    let allocatedOutflows: Double
-    let dismissPieOnIncomeControlTap: () -> Void
-    let dismissSelectionsOnTapOutsideBar: () -> Void
-    let dismissIncomeCalloutFromTooltipTap: () -> Void
-
-    private var incomeFormatted: String {
-        CurrencyFormatter.format(monthlyIncome, currencyCode: currencyCode)
-    }
-
-    private var allocatedFormatted: String {
-        CurrencyFormatter.format(allocatedOutflows, currencyCode: currencyCode)
-    }
-
-    private var denomCGFloat: CGFloat {
-        CGFloat(max(segmentDenominator, analyticsTrendMetricZeroEpsilon))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.m) {
-            VStack(alignment: .leading, spacing: AppSpacing.m) {
-                Divider()
-                    .background(AppColorTheme.cardBorder.opacity(0.85))
-                    .padding(.bottom, AppSpacing.xs)
-
-                if showRemainingBar {
-                    Text(String(format: L10n("analytics.income_split.summary_spent_of_income"), allocatedFormatted, incomeFormatted))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundColor(AppColorTheme.textTertiary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .multilineTextAlignment(.trailing)
-                        .accessibilityLabel(
-                            String(format: L10n("analytics.income_split.summary_spent_of_income"), allocatedFormatted, incomeFormatted)
-                        )
-                } else {
-                    Text(String(format: L10n("analytics.income_split.summary_allocated_only"), allocatedFormatted))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundColor(AppColorTheme.textTertiary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .multilineTextAlignment(.trailing)
-                }
-
-                if !showRemainingBar {
-                    Text(L10n("analytics.income_split.no_income_hint"))
-                        .font(AppTypography.caption)
-                        .foregroundColor(AppColorTheme.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { dismissSelectionsOnTapOutsideBar() }
-
-            IncomeSplitSegmentedBar(
-                totalWidthReveal: barRevealProgress,
-                selectedSegment: $selectedSegment,
-                expenses: expenses,
-                savings: savings,
-                remaining: remaining,
-                showRemaining: showRemainingBar,
-                denominator: denomCGFloat,
-                expenseColor: AppColorTheme.expenseIndicator,
-                savingsColor: AppColorTheme.savingsIndicator,
-                remainingColor: AppColorTheme.sapphire,
-                expenseLabel: L10n("analytics.pie.expenses"),
-                savingsLabel: L10n("analytics.pie.savings"),
-                remainingLabel: L10n("analytics.pie.remaining"),
-                currencyCode: currencyCode,
-                dismissPieOnIncomeControlTap: dismissPieOnIncomeControlTap
-            )
-            .accessibilityElement(children: .contain)
-            .accessibilityHint(incomeSplitBarAccessibilitySummary())
-            .overlay(alignment: .top) {
-                IncomeSplitSegmentCallout(
-                    selection: selectedSegment,
-                    expenses: expenses,
-                    savings: savings,
-                    remaining: remaining,
-                    expenseTitle: L10n("analytics.pie.expenses"),
-                    savingsTitle: L10n("analytics.pie.savings"),
-                    remainingTitle: L10n("analytics.pie.remaining"),
-                    currencyCode: currencyCode,
-                    onTapDismiss: dismissIncomeCalloutFromTooltipTap
-                )
-                .animation(AppAnimation.incomeSplitCallout, value: selectedSegment)
-                .offset(y: -incomeSplitCalloutAboveBarOffset)
-            }
-            // Matches previous `VStack(spacing: 10)` top inset when the callout had zero height.
-            .padding(.top, 10)
-
-            if showOverflowHint {
-                Text(L10n("analytics.income_split.overflow_hint"))
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundColor(AppColorTheme.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .contentShape(Rectangle())
-                    .onTapGesture { dismissSelectionsOnTapOutsideBar() }
-            }
-
-            HStack(alignment: .center, spacing: 8) {
-                incomeSplitLegendChip(
-                    kind: .expenses,
-                    color: AppColorTheme.expenseIndicator,
-                    title: L10n("analytics.pie.expenses"),
-                    amount: expenses
-                )
-                incomeSplitLegendChip(
-                    kind: .savings,
-                    color: AppColorTheme.savingsIndicator,
-                    title: L10n("analytics.pie.savings"),
-                    amount: savings
-                )
-                if showRemainingBar {
-                    incomeSplitLegendChip(
-                        kind: .remaining,
-                        color: AppColorTheme.sapphire,
-                        title: L10n("analytics.pie.remaining"),
-                        amount: remaining
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .contain)
-        }
-    }
-
-    private func incomeSplitBarAccessibilitySummary() -> String {
-        let e = CurrencyFormatter.format(expenses, currencyCode: currencyCode)
-        let s = CurrencyFormatter.format(savings, currencyCode: currencyCode)
-        let r = CurrencyFormatter.format(remaining, currencyCode: currencyCode)
-        let inc = incomeFormatted
-        if showRemainingBar {
-            return String(format: L10n("analytics.income_split.a11y.segmented_summary"), e, s, r, inc)
-        }
-        return String(format: L10n("analytics.income_split.a11y.segmented_summary_no_remaining"), e, s)
-    }
-
-    private func incomeSplitLegendChip(kind: IncomeSplitSegmentKind, color: Color, title: String, amount: Double) -> some View {
-        let formatted = CurrencyFormatter.format(amount, currencyCode: currencyCode)
-        let isOn = selectedSegment == kind
-        return Button {
-            HapticHelper.lightImpact()
-            dismissPieOnIncomeControlTap()
-            withAnimation(AppAnimation.incomeSplitCallout) {
-                selectedSegment = selectedSegment == kind ? nil : kind
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [color, color.opacity(0.75)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 9, height: 9)
-                    .overlay(Circle().stroke(Color.white.opacity(isOn ? 0.35 : 0.12), lineWidth: isOn ? 1.5 : 1))
-                Text(title)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(isOn ? AppColorTheme.textPrimary : AppColorTheme.textSecondary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isOn ? AppColorTheme.layer3Elevated.opacity(0.55) : Color.clear)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(String(format: L10n("analytics.income_split.a11y.bar_label"), title, formatted))
-    }
-}
-
-/// Minimal callout above the capsule: **Name · amount** (currency in formatted string).
-private struct IncomeSplitSegmentCallout: View {
-    let selection: IncomeSplitSegmentKind?
-    let expenses: Double
-    let savings: Double
-    let remaining: Double
-    let expenseTitle: String
-    let savingsTitle: String
-    let remainingTitle: String
-    let currencyCode: String
-    let onTapDismiss: () -> Void
-
-    var body: some View {
-        Group {
-            if let sel = selection {
-                let titleAmount: (String, Double) = {
-                    switch sel {
-                    case .expenses: return (expenseTitle, expenses)
-                    case .savings: return (savingsTitle, savings)
-                    case .remaining: return (remainingTitle, remaining)
-                    }
-                }()
-                let formatted = CurrencyFormatter.format(titleAmount.1, currencyCode: currencyCode)
-                Text("\(titleAmount.0) · \(formatted)")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(AppColorTheme.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(AppColorTheme.grayDark.opacity(0.92))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color.white.opacity(0.14), Color.white.opacity(0.04)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                    )
-                    .shadow(color: Color.black.opacity(0.35), radius: 10, x: 0, y: 5)
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
-                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .onTapGesture {
-                        HapticHelper.lightImpact()
-                        onTapDismiss()
-                    }
-                    .transition(
-                        .asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.94, anchor: .bottom)).combined(with: .offset(y: 6)),
-                            removal: .opacity.combined(with: .scale(scale: 0.96, anchor: .top))
-                        )
-                    )
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-private let incomeSplitBarTrackHeight: CGFloat = 22
-/// Vertical lift for the segment tooltip so it sits above the capsule without participating in layout (avoids pushing the bar down).
-private let incomeSplitCalloutAboveBarOffset: CGFloat = 52
-
-/// Storage-style segmented capsule with hairline dividers; tap toggles selection (shows callout).
-private struct IncomeSplitSegmentedBar: View {
-    let totalWidthReveal: CGFloat
-    @Binding var selectedSegment: IncomeSplitSegmentKind?
-    let expenses: Double
-    let savings: Double
-    let remaining: Double
-    let showRemaining: Bool
-    let denominator: CGFloat
-    let expenseColor: Color
-    let savingsColor: Color
-    let remainingColor: Color
-    let expenseLabel: String
-    let savingsLabel: String
-    let remainingLabel: String
-    let currencyCode: String
-    let dismissPieOnIncomeControlTap: () -> Void
-
-    private var eps: Double { analyticsTrendMetricZeroEpsilon }
-
-    var body: some View {
-        GeometryReader { geo in
-            let track = geo.size.width
-            let scale = max(denominator, CGFloat(eps))
-            let fE = CGFloat(expenses) / scale
-            let fS = CGFloat(savings) / scale
-            let fR = showRemaining ? CGFloat(remaining) / scale : 0
-            let wE = max(0, track * fE * totalWidthReveal)
-            let wS = max(0, track * fS * totalWidthReveal)
-            let wR = max(0, track * fR * totalWidthReveal)
-            let hasE = expenses > eps
-            let hasS = savings > eps
-            let hasR = showRemaining && remaining > eps
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(AppColorTheme.chartBarBackground.opacity(0.72))
-                HStack(spacing: 0) {
-                    if hasE {
-                        segmentCell(
-                            width: wE,
-                            colors: [expenseColor, expenseColor.opacity(0.82)],
-                            kind: .expenses,
-                            label: expenseLabel,
-                            amount: expenses,
-                            showTrailingDivider: hasS || hasR,
-                            dismissPieOnIncomeControlTap: dismissPieOnIncomeControlTap
-                        )
-                    }
-                    if hasS {
-                        segmentCell(
-                            width: wS,
-                            colors: [savingsColor, savingsColor.opacity(0.82)],
-                            kind: .savings,
-                            label: savingsLabel,
-                            amount: savings,
-                            showTrailingDivider: hasR,
-                            dismissPieOnIncomeControlTap: dismissPieOnIncomeControlTap
-                        )
-                    }
-                    if hasR {
-                        segmentCell(
-                            width: wR,
-                            colors: [remainingColor, remainingColor.opacity(0.82)],
-                            kind: .remaining,
-                            label: remainingLabel,
-                            amount: remaining,
-                            showTrailingDivider: false,
-                            dismissPieOnIncomeControlTap: dismissPieOnIncomeControlTap
-                        )
-                    }
-                }
-                .clipShape(Capsule())
-            }
-            .frame(height: incomeSplitBarTrackHeight)
-        }
-        .frame(height: incomeSplitBarTrackHeight)
-    }
-
-    private func segmentCell(
-        width: CGFloat,
-        colors: [Color],
-        kind: IncomeSplitSegmentKind,
-        label: String,
-        amount: Double,
-        showTrailingDivider: Bool,
-        dismissPieOnIncomeControlTap: @escaping () -> Void
-    ) -> some View {
-        let formatted = CurrencyFormatter.format(amount, currencyCode: currencyCode)
-        let isSelected = selectedSegment == kind
-        return Button {
-            HapticHelper.selection()
-            dismissPieOnIncomeControlTap()
-            withAnimation(AppAnimation.incomeSplitCallout) {
-                selectedSegment = selectedSegment == kind ? nil : kind
-            }
-        } label: {
-            ZStack(alignment: .trailing) {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: colors,
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .overlay(
-                        Rectangle()
-                            .fill(Color.white.opacity(isSelected ? 0.12 : 0))
-                    )
-                if showTrailingDivider {
-                    Rectangle()
-                        .fill(Color.black.opacity(0.42))
-                        .frame(width: 1)
-                        .padding(.vertical, 4)
-                }
-            }
-            .frame(width: max(0, width))
-            .frame(maxHeight: .infinity)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(String(format: L10n("analytics.income_split.a11y.bar_label"), label, formatted))
-    }
 }
 
 // MARK: - Pie selection detail (Analytics hero)

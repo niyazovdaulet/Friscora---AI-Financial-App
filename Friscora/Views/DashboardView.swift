@@ -10,19 +10,32 @@ import Combine
 import UIKit
 
 struct DashboardView: View {
+    /// Prior hero height before −40% trim; used to scale KPI overlap and spark inset.
+    private enum HeroLayout {
+        static let referenceHeight: CGFloat = 312
+        /// 40% shorter than `referenceHeight` (60% of original).
+        static let cardHeight: CGFloat = (referenceHeight * 0.6).rounded()
+        static let kpiOverlap: CGFloat = (56 * (cardHeight / referenceHeight)).rounded()
+        static let sparkBottomInset: CGFloat = (68 * (cardHeight / referenceHeight)).rounded()
+    }
+
     @StateObject private var viewModel = DashboardViewModel()
     @StateObject private var expenseService = ExpenseService.shared
     @StateObject private var incomeService = IncomeService.shared
     @StateObject private var goalService = GoalService.shared
-    @StateObject private var workScheduleService = WorkScheduleService.shared
+    @StateObject private var localizationManager = LocalizationManager.shared
     @Binding var selectedTab: Int
-    @State private var isButtonPressed = false
-    @AppStorage("friscora.dashboard.spendingByCategoryExpanded") private var isCategorySectionExpanded = true
-    @AppStorage("friscora.dashboard.allocatedSavingsExpanded") private var isAllocatedSavingsExpanded = true
     @State private var showHistoryView = false
     @State private var showStatementImport = false
-    @State private var dashboardEntranceDone = false
-    @State private var navigateToGoalsView = false
+    @State private var showGoalsFromSavingsCard = false
+    @State private var heroReveal = false
+    @State private var sparklineEntranceTrigger = 0
+    @State private var categorySectionReveal = false
+    @State private var activitySectionReveal = false
+    @State private var animatedRemaining: Double = 0
+    @State private var animatedIncome: Double = 0
+    @State private var animatedExpenses: Double = 0
+    @State private var animatedSavings: Double = 0
     
     init(selectedTab: Binding<Int> = .constant(0)) {
         _selectedTab = selectedTab
@@ -30,40 +43,32 @@ struct DashboardView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Primary background color
-                AppColorTheme.background
-                    .ignoresSafeArea()
-                
+            ZStack(alignment: .top) {
+                AppColorTheme.background.ignoresSafeArea()
+
                 ScrollView {
-                    VStack(spacing: AppSpacing.xl) {
-                        summarySection
+                    VStack(spacing: AppSpacing.l) {
+                        heroSection
+                            .frame(height: HeroLayout.cardHeight)
 
-                        // Category breakdown (stagger after KPI grid)
-                        categorySection
-                            .opacity(dashboardEntranceDone ? 1 : 0)
-                            .offset(y: dashboardEntranceDone ? 0 : 16)
-                            .animation(AppAnimation.quickUI.delay(0.2), value: dashboardEntranceDone)
+                        kpiSection
+                            .padding(.top, -HeroLayout.kpiOverlap)
 
-                        // Goals section
-                        goalsSection
-                            .opacity(dashboardEntranceDone ? 1 : 0)
-                            .offset(y: dashboardEntranceDone ? 0 : 16)
-                            .animation(AppAnimation.quickUI.delay(0.25), value: dashboardEntranceDone)
+                        spendingByCategorySection
+                            .opacity(categorySectionReveal ? 1 : 0)
+                            .offset(y: categorySectionReveal ? 0 : 18)
 
-                        // Recent expenses
-                        recentExpensesSection
-                            .opacity(dashboardEntranceDone ? 1 : 0)
-                            .offset(y: dashboardEntranceDone ? 0 : 16)
-                            .animation(AppAnimation.quickUI.delay(0.3), value: dashboardEntranceDone)
+                        transactionsPreviewSection
+                            .opacity(activitySectionReveal ? 1 : 0)
+                            .offset(y: activitySectionReveal ? 0 : 18)
                     }
-                    .padding(AppSpacing.m)
-                    .onAppear {
-                        dashboardEntranceDone = true
-                    }
+                    .padding(.horizontal, AppSpacing.m)
+                    .padding(.top, 18)
+                    .padding(.bottom, AppSpacing.xl)
                 }
                 .scrollIndicators(.hidden, axes: .vertical)
             }
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
@@ -75,7 +80,7 @@ struct DashboardView: View {
                             Text(L10n("dashboard.toolbar.import"))
                                 .font(AppTypography.captionMedium)
                         }
-                        .foregroundColor(AppColorTheme.ctaPrimary)
+                        .foregroundColor(.white)
                         .padding(.horizontal, AppSpacing.s)
                         .padding(.vertical, AppSpacing.xs)
                         .background(Capsule().fill(AppColorTheme.ctaPrimary.opacity(0.15)))
@@ -83,40 +88,11 @@ struct DashboardView: View {
                     .accessibilityLabel(L10n("dashboard.toolbar.import_a11y"))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        // Merge/Unmerge button (only for past months)
-                        if viewModel.isPastMonth {
-                            Button {
-                                viewModel.toggleMergeMonth()
-                            } label: {
-                                HStack(spacing: AppSpacing.xs) {
-                                    Image(systemName: viewModel.isMonthMerged(viewModel.selectedMonth) ? "arrow.uturn.backward" : "arrow.right.circle")
-                                        .font(.caption)
-                                    Text(viewModel.isMonthMerged(viewModel.selectedMonth) ? L10n("dashboard.unmerge") : L10n("dashboard.merge"))
-                                        .font(AppTypography.captionMedium)
-                                }
-                                .foregroundColor(viewModel.isMonthMerged(viewModel.selectedMonth) ? AppColorTheme.negative : AppColorTheme.ctaPrimary)
-                                .padding(.horizontal, AppSpacing.s)
-                                .padding(.vertical, AppSpacing.xs)
-                                .frame(minHeight: 44)
-                                .background(
-                                    Capsule()
-                                        .fill(viewModel.isMonthMerged(viewModel.selectedMonth) ? AppColorTheme.negative.opacity(0.15) : AppColorTheme.ctaPrimary.opacity(0.15))
-                                )
-                            }
-                            .accessibilityLabel(viewModel.isMonthMerged(viewModel.selectedMonth) ? L10n("dashboard.unmerge") : L10n("dashboard.merge"))
-                            .accessibilityHint("Double tap to merge or unmerge month with current")
-                        }
-                        
-                        monthPicker
-                    }
+                    monthPicker
                 }
             }
             .refreshable {
                 viewModel.refresh()
-            }
-            .onChange(of: viewModel.selectedMonth) { _, _ in
-                withAnimation(AppAnimation.standard) {}
             }
             .onReceive(expenseService.$expenses) { _ in
                 viewModel.updateDataAsync()
@@ -127,10 +103,25 @@ struct DashboardView: View {
             .fullScreenCover(isPresented: $showHistoryView) {
                 HistoryView()
             }
+            .navigationDestination(isPresented: $showGoalsFromSavingsCard) {
+                GoalsView()
+            }
             .sheet(isPresented: $showStatementImport) {
-                StatementImportHomeView()
+                StatementImportHomeView(selectedTab: $selectedTab)
                     .presentationCornerRadius(24)
             }
+            .onAppear {
+                runEntranceAnimations()
+                animateKPIValues()
+            }
+            .onChange(of: selectedTab) { _, newTab in
+                guard newTab == 0 else { return }
+                replayDashboardTabAnimations()
+            }
+            .onChange(of: viewModel.remainingBalance) { _, _ in animateKPIValues() }
+            .onChange(of: viewModel.monthlyIncome) { _, _ in animateKPIValues() }
+            .onChange(of: viewModel.totalExpenses) { _, _ in animateKPIValues() }
+            .onChange(of: viewModel.goalAllocations) { _, _ in animateKPIValues() }
         }
     }
     
@@ -164,298 +155,301 @@ struct DashboardView: View {
         .accessibilityHint("Double tap to change month")
     }
     
-    private var summarySection: some View {
+    private var heroSection: some View {
         let currency = UserProfileService.shared.profile.currency
-        let columns = [
-            GridItem(.flexible(), spacing: AppSpacing.s),
-            GridItem(.flexible(), spacing: AppSpacing.s)
-        ]
-        return LazyVGrid(columns: columns, spacing: AppSpacing.s) {
-            DashboardKPICard(
-                title: L10n("dashboard.income"),
-                amount: viewModel.monthlyIncome,
-                currencyCode: currency,
-                accentColor: AppColorTheme.incomeIndicator,
-                entranceIndex: 0,
-                entranceReady: dashboardEntranceDone
-            )
+        let heroChrome = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        let borderColor = Color(red: 140 / 255, green: 100 / 255, blue: 255 / 255).opacity(0.25)
+        let labelTint = Color(red: 200 / 255, green: 180 / 255, blue: 255 / 255)
 
-            DashboardKPICard(
-                title: L10n("dashboard.expenses"),
-                amount: viewModel.totalExpenses,
-                currencyCode: currency,
-                accentColor: AppColorTheme.expenseIndicator,
-                entranceIndex: 1,
-                entranceReady: dashboardEntranceDone
-            )
-
-            DashboardKPICard(
-                title: L10n("dashboard.kpi.savings"),
-                amount: viewModel.goalAllocations,
-                currencyCode: currency,
-                accentColor: AppColorTheme.savingsIndicator,
-                entranceIndex: 2,
-                entranceReady: dashboardEntranceDone
-            )
-
-            DashboardKPICard(
-                title: L10n("dashboard.kpi.balance"),
-                amount: viewModel.remainingBalance,
-                currencyCode: currency,
-                accentColor: viewModel.remainingBalance >= 0 ? AppColorTheme.balanceIndicator : AppColorTheme.warning,
-                entranceIndex: 3,
-                entranceReady: dashboardEntranceDone,
-                surfaceBackground: AppColorTheme.kpiBalanceCardBackground,
-                surfaceBorder: AppColorTheme.kpiBalanceCardBorder
-            )
-        }
-    }
-    
-    private var categorySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header: tappable to collapse/expand when there is data
-            Button {
-                guard !viewModel.categoryBreakdown.isEmpty else { return }
-                HapticHelper.lightImpact()
-                withAnimation(AppAnimation.cardExpand) {
-                    isCategorySectionExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Text(L10n("dashboard.spending_by_category"))
-                        .font(.headline)
-                        .foregroundColor(AppColorTheme.textPrimary)
-                    Spacer()
-                    if !viewModel.categoryBreakdown.isEmpty {
-                        Image(systemName: isCategorySectionExpanded ? "chevron.down" : "chevron.right")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(AppColorTheme.textSecondary)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-            .disabled(viewModel.categoryBreakdown.isEmpty)
-            
-            if isCategorySectionExpanded || viewModel.categoryBreakdown.isEmpty {
-                if viewModel.categoryBreakdown.isEmpty {
-                    EmptyStateView(
-                        icon: "chart.pie",
-                        message: L10n("dashboard.empty_categories"),
-                        actionTitle: L10n("dashboard.add_expense"),
-                        action: { navigateToAddTab() },
-                        compact: true
+        return ZStack(alignment: .topLeading) {
+            heroChrome
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color(hex: "1a2a6e"), location: 0),
+                            .init(color: Color(hex: "2a1a7e"), location: 0.4),
+                            .init(color: Color(hex: "4a1a8e"), location: 0.7),
+                            .init(color: Color(hex: "6a1a7e"), location: 1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-                } else {
-                    CategoryChartView(categoryBreakdown: viewModel.categoryBreakdown)
-                }
-            }
-        }
-        .padding(AppSpacing.m)
-        .background(
-            RoundedRectangle(cornerRadius: AppRadius.card)
-                .fill(AppColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.card)
-                        .stroke(AppColorTheme.cardBorder, lineWidth: 1)
                 )
-        )
-    }
-    
-    private var goalsSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.m) {
-            HStack {
-                Button {
-                    HapticHelper.lightImpact()
-                    withAnimation(AppAnimation.cardExpand) {
-                        isAllocatedSavingsExpanded.toggle()
-                    }
-                } label: {
-                    Text(L10n("dashboard.allocated_savings"))
-                        .font(.headline)
-                        .foregroundColor(AppColorTheme.textPrimary)
+                .overlay(alignment: .topTrailing) {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color(red: 180 / 255, green: 120 / 255, blue: 255 / 255).opacity(0.25),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 154
+                            )
+                        )
+                        .frame(width: 220, height: 220)
+                        .offset(x: 54, y: -54)
                 }
-                .buttonStyle(.plain)
-                
-                Spacer()
-                
-                NavigationLink(destination: GoalsView()) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "target")
-                            .font(.system(size: 14))
-                        Text(L10n("dashboard.goals"))
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                    .foregroundColor(AppColorTheme.ctaPrimary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(AppColorTheme.ctaPrimary.opacity(0.15))
+                .overlay(alignment: .bottomLeading) {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color(red: 80 / 255, green: 120 / 255, blue: 255 / 255).opacity(0.2),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 112
+                            )
+                        )
+                        .frame(width: 160, height: 160)
+                        .offset(x: -40, y: 40)
+                }
+                .clipShape(heroChrome)
+                .overlay {
+                    heroChrome.stroke(borderColor, lineWidth: 0.5)
+                }
+
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n("dashboard.hero.current_balance"))
+                        .font(.system(size: 11, weight: .medium, design: .default))
+                        .tracking(1.35)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.white)
+
+                    Text(heroLastUpdatedText)
+                        .font(.system(size: 11, weight: .regular, design: .default))
+                        .foregroundStyle(labelTint.opacity(0.5))
+
+                    DashboardHeroAmountRow(
+                        amount: animatedRemaining,
+                        currencyCode: currency,
+                        majorFontSize: 31,
+                        minorFontSize: 14,
+                        majorTracking: -0.75
                     )
-                }
-                .buttonStyle(.plain)
-                
-                Button {
-                    HapticHelper.lightImpact()
-                    withAnimation(AppAnimation.cardExpand) {
-                        isAllocatedSavingsExpanded.toggle()
+                    .contentTransition(.numericText())
+
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(labelTint.opacity(0.65))
+                        Text(
+                            String(
+                                format: L10n("dashboard.hero.daily_average_format"),
+                                CurrencyFormatter.format(dailyBudget, currencyCode: currency)
+                            )
+                        )
+                        .font(.system(size: 12, weight: .regular, design: .default))
+                        .foregroundStyle(labelTint.opacity(0.65))
                     }
-                } label: {
-                    Image(systemName: isAllocatedSavingsExpanded ? "chevron.down" : "chevron.right")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(AppColorTheme.textSecondary)
-                        .frame(minWidth: 32, minHeight: 32)
-                        .contentShape(Rectangle())
+                    .padding(.top, 1)
+
+                    Color.clear.frame(height: 6)
+
+                    DashboardHeroSparkline(chartHeight: 26, lineStrokeWidth: 1.25, entranceTrigger: sparklineEntranceTrigger)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isAllocatedSavingsExpanded ? L10n("dashboard.allocated_savings_a11y.collapse") : L10n("dashboard.allocated_savings_a11y.expand"))
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.horizontal, AppSpacing.xl)
+                .padding(.top, AppSpacing.s)
+                .padding(.bottom, HeroLayout.sparkBottomInset)
+                .opacity(heroReveal ? 1 : 0)
+                .offset(y: heroReveal ? 0 : 16)
+                .animation(AppAnimation.primaryTransition, value: heroReveal)
             }
-            
-            if isAllocatedSavingsExpanded {
-                if viewModel.activeGoals.isEmpty {
-                    EmptyStateView(
-                        icon: "target",
-                        message: L10n("dashboard.no_active_savings"),
-                        actionTitle: L10n("dashboard.create_goal"),
-                        action: { navigateToGoalsView = true },
-                        compact: true
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .overlay(alignment: .topTrailing) {
+                Image("app-logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.white.opacity(0.22), lineWidth: 1)
                     )
-                    .background(
-                        NavigationLink(destination: GoalsView(), isActive: $navigateToGoalsView) {
-                            EmptyView()
-                        }
-                        .hidden()
-                    )
-                } else {
-                    VStack(spacing: 10) {
-                        ForEach(viewModel.activeGoals.prefix(3)) { goal in
-                            GoalSummaryCard(goal: goal)
-                        }
-                        
-                        if viewModel.activeGoals.count > 3 {
-                            NavigationLink(destination: GoalsView()) {
-                                HStack {
-                                    Text(L10n("dashboard.view_all_goals"))
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                }
-                                .foregroundColor(AppColorTheme.ctaPrimary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(AppColorTheme.layer3Elevated)
-                                )
+                    .shadow(color: Color.black.opacity(0.24), radius: 8, x: 0, y: 4)
+                    .padding(.top, AppSpacing.s)
+                    .padding(.trailing, AppSpacing.s)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .shadow(color: Color.black.opacity(0.22), radius: 22, x: 0, y: 12)
+    }
+
+    private var kpiSection: some View {
+        let currency = UserProfileService.shared.profile.currency
+        return HStack(spacing: AppSpacing.s) {
+            PremiumKPICard(
+                title: L10n("dashboard.income"),
+                amount: animatedIncome,
+                currencyCode: currency,
+                accentColor: AppColorTheme.incomeIndicator
+            ) {
+                HapticHelper.mediumImpact()
+                withAnimation(AppAnimation.primaryTransition) {
+                    selectedTab = 1
+                }
+            }
+            PremiumKPICard(
+                title: L10n("dashboard.expenses"),
+                amount: animatedExpenses,
+                currencyCode: currency,
+                accentColor: AppColorTheme.expenseIndicator
+            ) {
+                HapticHelper.mediumImpact()
+                withAnimation(AppAnimation.sheetPresent) {
+                    showHistoryView = true
+                }
+            }
+            PremiumKPICard(
+                title: L10n("dashboard.kpi.savings"),
+                amount: animatedSavings,
+                currencyCode: currency,
+                accentColor: AppColorTheme.balanceIndicator
+            ) {
+                HapticHelper.mediumImpact()
+                withAnimation(AppAnimation.primaryTransition) {
+                    showGoalsFromSavingsCard = true
+                }
+            }
+        }
+    }
+
+    private var spendingByCategorySection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            Text(L10n("dashboard.spending_by_category"))
+                .font(.headline)
+                .foregroundColor(AppColorTheme.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if viewModel.categoryBreakdown.isEmpty {
+                EmptyStateView(
+                    icon: "chart.pie",
+                    message: L10n("dashboard.empty_categories"),
+                    actionTitle: L10n("dashboard.add_expense"),
+                    action: { selectedTab = 2 },
+                    compact: true
+                )
+                .frame(maxWidth: .infinity)
+                .padding(AppSpacing.m)
+                .background(spendingByCategoryCardChrome)
+            } else {
+                let fullRows = viewModel.orderedCategorySpendingForDashboard
+                let visibleRows = Array(fullRows.prefix(4))
+                let hasMoreCategories = fullRows.count > 4
+                let totalSpending = max(viewModel.categoryBreakdown.values.reduce(0, +), 0.01)
+                let locale = localizationManager.currentLocale
+                VStack(spacing: 0) {
+                    ForEach(Array(visibleRows.enumerated()), id: \.element.category.id) { index, row in
+                        let share = row.amount / totalSpending
+                        VStack(spacing: 0) {
+                            PremiumCategoryRow(
+                                category: row.category,
+                                amount: row.amount,
+                                progress: share,
+                                currencyCode: UserProfileService.shared.profile.currency,
+                                locale: locale,
+                                index: index
+                            )
+                            .padding(.horizontal, AppSpacing.m)
+                            .padding(.vertical, AppSpacing.s)
+
+                            if index < visibleRows.count - 1 {
+                                spendingByCategoryRowDivider
                             }
                         }
                     }
+                    if hasMoreCategories {
+                        HStack {
+                            Spacer()
+                            Button {
+                                HapticHelper.lightImpact()
+                                AnalyticsMonthHandoff.scheduleOpenAligningAnalytics(toMonth: viewModel.selectedMonth)
+                                // Analytics tab index matches `MainTabView` / `CustomTabBar` (1 = chart / full breakdown).
+                                withAnimation(AppAnimation.primaryTransition) {
+                                    selectedTab = 1
+                                }
+                            } label: {
+                                Text(L10n("dashboard.spending_by_category_show_more"))
+                                    .font(AppTypography.captionMedium)
+                                    .foregroundColor(AppColorTheme.ctaPrimary)
+                                    .padding(.horizontal, AppSpacing.s)
+                                    .padding(.vertical, AppSpacing.xs)
+                                    .background(
+                                        Capsule()
+                                            .fill(AppColorTheme.ctaPrimary.opacity(0.12))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(L10n("dashboard.spending_by_category_show_more_a11y"))
+                        }
+                        .padding(.horizontal, AppSpacing.m)
+                        .padding(.vertical, AppSpacing.s)
+                    }
                 }
-            }
-        }
-        .padding(.horizontal, AppSpacing.m)
-        .padding(.vertical, isAllocatedSavingsExpanded ? AppSpacing.m : AppSpacing.s)
-        .background(
-            RoundedRectangle(cornerRadius: AppRadius.card)
-                .fill(AppColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.card)
-                        .stroke(AppColorTheme.cardBorder, lineWidth: 1)
-                )
-        )
-    }
-    
-    private var recentActivities: [ActivityItem] {
-        getRecentActivities()
-    }
-    
-    private func formatCurrency(_ amount: Double) -> String {
-        return CurrencyFormatter.format(amount, currencyCode: UserProfileService.shared.profile.currency)
-    }
-    
-    private func navigateToAddTab() {
-        HapticHelper.lightImpact()
-        
-        // Button press animation
-        withAnimation(AppAnimation.buttonPress) {
-            isButtonPressed = true
-        }
-        
-        // Smooth transition to Add tab
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(AppAnimation.primaryTransition) {
-                selectedTab = 2
-            }
-            
-            // Reset button state after animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                withAnimation(AppAnimation.standard) {
-                    isButtonPressed = false
-                }
+                .background(spendingByCategoryCardChrome)
             }
         }
     }
-    
-    private var recentExpensesSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.m) {
+
+    private var spendingByCategoryCardChrome: some View {
+        RoundedRectangle(cornerRadius: AppRadius.card)
+            .fill(AppColorTheme.cardBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.card)
+                    .stroke(AppColorTheme.cardBorder, lineWidth: 1)
+            )
+    }
+
+    private var spendingByCategoryRowDivider: some View {
+        Rectangle()
+            .fill(AppColorTheme.rowDivider)
+            .frame(height: 1)
+            .padding(.horizontal, AppSpacing.m)
+    }
+
+    private var transactionsPreviewSection: some View {
+        let preview = Array(getRecentActivities().prefix(4))
+        return VStack(alignment: .leading, spacing: AppSpacing.s) {
             HStack {
                 Text(L10n("dashboard.recent_activity"))
                     .font(.headline)
                     .foregroundColor(AppColorTheme.textPrimary)
-                
                 Spacer()
-                
-                HStack(spacing: AppSpacing.s) {
-                    Button {
-                        HapticHelper.lightImpact()
-                        withAnimation(AppAnimation.sheetPresent) {
-                            showHistoryView = true
-                        }
-                    } label: {
-                        HStack(spacing: AppSpacing.xs) {
-                            Text(L10n("dashboard.view_all"))
-                                .font(AppTypography.captionMedium)
-                            Image(systemName: "arrow.right")
-                                .font(.caption2)
-                        }
+                Button {
+                    HapticHelper.lightImpact()
+                    withAnimation(AppAnimation.sheetPresent) {
+                        showHistoryView = true
+                    }
+                } label: {
+                    Text(L10n("dashboard.view_all"))
+                        .font(AppTypography.captionMedium)
                         .foregroundColor(AppColorTheme.ctaPrimary)
                         .padding(.horizontal, AppSpacing.s)
                         .padding(.vertical, AppSpacing.xs)
-                        .frame(minHeight: 44)
                         .background(
                             Capsule()
                                 .fill(AppColorTheme.ctaPrimary.opacity(0.12))
                         )
-                    }
-                    .accessibilityLabel(L10n("dashboard.view_all"))
-                    .accessibilityHint("Double tap to open full transaction history")
                 }
             }
-            
-            if recentActivities.isEmpty {
+
+            if preview.isEmpty {
                 EmptyStateView(
                     icon: "clock.arrow.circlepath",
                     message: L10n("dashboard.no_activity_yet"),
                     actionTitle: L10n("dashboard.view_all"),
-                    action: {
-                        HapticHelper.lightImpact()
-                        withAnimation(AppAnimation.sheetPresent) { showHistoryView = true }
-                    },
+                    action: { showHistoryView = true },
                     compact: true
                 )
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(recentActivities.enumerated()), id: \.element.id) { index, activity in
-                        ActivityRowView(activity: activity, isPastMonth: viewModel.isPastMonth)
-                        
-                        if index < recentActivities.count - 1 {
-                            Divider()
-                                .background(AppColorTheme.rowDivider)
-                        }
+                VStack(spacing: 10) {
+                    ForEach(preview) { activity in
+                        TransactionPreviewRow(activity: activity)
                     }
                 }
             }
@@ -470,7 +464,83 @@ struct DashboardView: View {
                 )
         )
     }
-    
+
+    private var dailyBudget: Double {
+        let days = Calendar.current.range(of: .day, in: .month, for: viewModel.selectedMonth)?.count ?? 30
+        return viewModel.remainingBalance / Double(max(days, 1))
+    }
+
+    /// Latest date among expenses, incomes, and goal contributions (any month).
+    private func latestDashboardActivityDate() -> Date? {
+        var latest: Date?
+        for expense in expenseService.expenses {
+            if latest == nil || expense.date > latest! {
+                latest = expense.date
+            }
+        }
+        for income in incomeService.incomes {
+            if latest == nil || income.date > latest! {
+                latest = income.date
+            }
+        }
+        for activity in goalService.activities {
+            if latest == nil || activity.date > latest! {
+                latest = activity.date
+            }
+        }
+        return latest
+    }
+
+    private var heroLastUpdatedText: String {
+        guard let latest = latestDashboardActivityDate() else {
+            return L10n("dashboard.hero.no_activity")
+        }
+        let seconds = Date().timeIntervalSince(latest)
+        if seconds < 60 {
+            return L10n("dashboard.hero.updated_just_now")
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        let locale = localizationManager.currentLocale
+        formatter.locale = locale
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        formatter.calendar = calendar
+        let relative = formatter.localizedString(for: latest, relativeTo: Date())
+        return String(format: L10n("dashboard.hero.updated_format"), relative)
+    }
+
+    private func animateKPIValues() {
+        withAnimation(.spring(response: 0.8, dampingFraction: 0.9)) {
+            animatedRemaining = viewModel.remainingBalance
+            animatedIncome = viewModel.monthlyIncome
+            animatedExpenses = viewModel.totalExpenses
+            animatedSavings = viewModel.goalAllocations
+        }
+    }
+
+    /// `MainTabView` keeps tab roots mounted (opacity stack), so `onAppear` does not run again when returning to Dashboard — reset KPI drivers then count up on next run loop.
+    private func replayDashboardTabAnimations() {
+        withAnimation(.none) {
+            animatedRemaining = 0
+            animatedIncome = 0
+            animatedExpenses = 0
+            animatedSavings = 0
+        }
+        sparklineEntranceTrigger += 1
+        DispatchQueue.main.async {
+            animateKPIValues()
+        }
+    }
+
+    private func runEntranceAnimations() {
+        guard !heroReveal else { return }
+        withAnimation(AppAnimation.primaryTransition) { heroReveal = true }
+        sparklineEntranceTrigger += 1
+        withAnimation(AppAnimation.quickUI.delay(0.1)) { categorySectionReveal = true }
+        withAnimation(AppAnimation.quickUI.delay(0.2)) { activitySectionReveal = true }
+    }
+
     private func getRecentActivities() -> [ActivityItem] {
         let calendar = Calendar.current
         let goalService = GoalService.shared
@@ -532,6 +602,291 @@ struct DashboardView: View {
         }
         
         return entries
+    }
+}
+
+/// Hero balance: `CurrencyFormatter` comma/period split; Syne approximated with heavy rounded system at 48pt / 22pt suffix.
+private struct DashboardHeroAmountRow: View {
+    let amount: Double
+    let currencyCode: String
+    var majorFontSize: CGFloat = 48
+    var minorFontSize: CGFloat = 22
+    var majorTracking: CGFloat = -1
+
+    private var components: AmountComponents {
+        CurrencyFormatter.components(amount, currencyCode: currencyCode)
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            splitLine
+            compactLine
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var splitLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 2) {
+            Text(components.major)
+                .font(.system(size: majorFontSize, weight: .heavy, design: .rounded))
+                .tracking(majorTracking)
+                .foregroundStyle(Color.white)
+                .monospacedDigit()
+            if !components.minor.isEmpty {
+                Text(components.minor)
+                    .font(.system(size: minorFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.55))
+                    .monospacedDigit()
+            }
+            Text(components.currency)
+                .font(.system(size: minorFontSize, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.55))
+        }
+        .lineLimit(1)
+    }
+
+    private var compactLine: some View {
+        let parts = CurrencyFormatter.compactAmountParts(amount, currencyCode: currencyCode)
+        return HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(parts.numeric)
+                .font(.system(size: majorFontSize, weight: .heavy, design: .rounded))
+                .tracking(majorTracking)
+                .foregroundStyle(Color.white)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(parts.currency)
+                .font(.system(size: minorFontSize, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.55))
+                .lineLimit(1)
+        }
+    }
+}
+
+private struct PremiumKPICard: View {
+    let title: String
+    let amount: Double
+    let currencyCode: String
+    let accentColor: Color
+    var onTap: (() -> Void)? = nil
+    @State private var isPressed = false
+
+    var body: some View {
+        Button {
+            HapticHelper.lightImpact()
+            if let onTap {
+                onTap()
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(accentColor)
+                        .frame(width: 4, height: 16)
+
+                    Text(title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(AppColorTheme.textSecondary)
+                }
+
+                AmountView(amount: amount, style: .secondary, currencyCode: currencyCode)
+                    .contentTransition(.numericText())
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(AppColorTheme.layer2Card.opacity(0.8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(AppColorTheme.cardBorder, lineWidth: 1)
+                    )
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            )
+            .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 8)
+            .scaleEffect(isPressed ? 0.97 : 1)
+            .animation(AppAnimation.buttonPress, value: isPressed)
+        }
+        .buttonStyle(.plain)
+        .onLongPressGesture(minimumDuration: 0.01, maximumDistance: 25, pressing: { pressing in
+            isPressed = pressing
+        }, perform: {})
+    }
+}
+
+private struct PremiumCategoryRow: View {
+    let category: CategoryDisplayInfo
+    let amount: Double
+    /// Share of total spending (0...1); drives bar fill and the trailing percent.
+    let progress: Double
+    let currencyCode: String
+    let locale: Locale
+    let index: Int
+
+    @State private var animatedProgress: Double = 0
+
+    private static let iconWellSize: CGFloat = 38
+    private static let iconWellCorner: CGFloat = 9
+
+    private var formattedAmount: String {
+        CurrencyFormatter.format(amount, currencyCode: currencyCode)
+    }
+
+    private var sharePercentText: String {
+        let clamped = min(max(progress, 0), 1)
+        return clamped.formatted(.percent.locale(locale).precision(.fractionLength(0...1)))
+    }
+
+    private var accessibilityCombinedLabel: String {
+        String(
+            format: L10n("dashboard.spending_by_category_row_a11y"),
+            category.name,
+            formattedAmount,
+            sharePercentText
+        )
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AppSpacing.s) {
+            ZStack {
+                RoundedRectangle(cornerRadius: Self.iconWellCorner, style: .continuous)
+                    .fill(category.chartTintColor.opacity(0.18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Self.iconWellCorner, style: .continuous)
+                            .stroke(category.chartTintColor.opacity(0.32), lineWidth: 1)
+                    )
+                    .frame(width: Self.iconWellSize, height: Self.iconWellSize)
+                Text(category.icon)
+                    .font(.system(size: 16))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(category.name)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(AppColorTheme.chartBarBackground)
+                        Capsule()
+                            .fill(category.chartTintColor)
+                            .frame(width: max(0, proxy.size.width * animatedProgress))
+                    }
+                }
+                .frame(height: 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(formattedAmount)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .multilineTextAlignment(.trailing)
+
+                Text(sharePercentText)
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppColorTheme.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .layoutPriority(1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityCombinedLabel)
+        .onAppear {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.9).delay(Double(index) * 0.06)) {
+                animatedProgress = min(max(progress, 0), 1)
+            }
+        }
+    }
+}
+
+private struct TransactionPreviewRow: View {
+    let activity: ActivityItem
+
+    private var iconSymbol: String {
+        if activity.isGoalContribution { return "target" }
+        if activity.isIncome { return "arrow.down" }
+        return "arrow.up"
+    }
+
+    private var iconColor: Color {
+        if activity.isGoalContribution { return AppColorTheme.savingsIndicator }
+        if activity.isIncome { return AppColorTheme.incomeIndicator }
+        return AppColorTheme.expenseIndicator
+    }
+
+    private var title: String {
+        switch activity.type {
+        case .expense(let expense):
+            if expense.isImported, let note = expense.note, !note.isEmpty { return note }
+            return expense.categoryName()
+        case .income(let income):
+            if income.isImported, let note = income.note, !note.isEmpty { return note }
+            return L10n("dashboard.income")
+        case .goalContribution(_, let goalTitle):
+            return String(format: L10n("dashboard.to_goal"), goalTitle)
+        case .mergedBalance(let monthName, _, _):
+            return String(format: L10n("dashboard.merged_from"), monthName)
+        }
+    }
+
+    private var amountString: String {
+        switch activity.type {
+        case .expense(let expense):
+            return CurrencyFormatter.format(-expense.amount, currencyCode: expense.currency)
+        case .income(let income):
+            return CurrencyFormatter.format(income.amount, currencyCode: income.currency)
+        case .goalContribution(let goalActivity, _):
+            return CurrencyFormatter.format(-goalActivity.amount, currencyCode: UserProfileService.shared.profile.currency)
+        case .mergedBalance(_, let amount, _):
+            return CurrencyFormatter.format(amount, currencyCode: UserProfileService.shared.profile.currency)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(iconColor.opacity(0.12))
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Image(systemName: iconSymbol)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(iconColor)
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(AppColorTheme.textPrimary)
+                    .lineLimit(1)
+                Text(activity.date, style: .date)
+                    .font(.caption)
+                    .foregroundColor(AppColorTheme.textTertiary)
+            }
+            Spacer()
+            Text(amountString)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(iconColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(AppColorTheme.layer3Elevated)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(AppColorTheme.cardBorder, lineWidth: 1)
+                )
+        )
     }
 }
 

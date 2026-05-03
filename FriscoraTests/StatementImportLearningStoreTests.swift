@@ -24,7 +24,7 @@ final class StatementImportLearningStoreTests: XCTestCase {
 
         XCTAssertEqual(suggestion.category.builtInCategory, .transport)
         XCTAssertEqual(suggestion.confidence, 1.0)
-        XCTAssertTrue(suggestion.reason.contains("manual correction"))
+        XCTAssertEqual(suggestion.reasonLocalizationKey, "statement.import.categorization.reason.learned_merchant")
     }
 
     func testInvalidLearnedCustomCategoryIsIgnoredSafely() {

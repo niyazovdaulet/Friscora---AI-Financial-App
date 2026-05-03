@@ -4,7 +4,7 @@ struct DeterministicCategoryRule: Hashable {
     let id: String
     let targetBuiltInCategory: ExpenseCategory
     let confidence: Double
-    let reason: String
+    let reasonLocalizationKey: String
     let keywords: [String]
 }
 
@@ -19,42 +19,42 @@ struct DeterministicRuleCatalog {
             id: "food-grocery-core",
             targetBuiltInCategory: .food,
             confidence: 0.92,
-            reason: "Grocery or food merchant keyword matched.",
+            reasonLocalizationKey: "statement.import.categorization.reason.food_grocery_core",
             keywords: ["ZABKA", "LIDL", "BIEDRONKA", "CARREFOUR", "BAR MLECZNY", "MCDONALDS", "KEBAB", "SIMIT HOUSE"]
         ),
         DeterministicCategoryRule(
             id: "transport-rides-fuel",
             targetBuiltInCategory: .transport,
             confidence: 0.90,
-            reason: "Ride, fuel, or transit-like keyword matched.",
+            reasonLocalizationKey: "statement.import.categorization.reason.transport_rides_fuel",
             keywords: ["UBER", "BOLT", "ORLEN", "CIRCLE K", "MERA", "MPSA", "BILET", "TICKET"]
         ),
         DeterministicCategoryRule(
             id: "subscriptions-billing",
             targetBuiltInCategory: .subscriptions,
             confidence: 0.90,
-            reason: "Recurring billing/subscription descriptor matched.",
+            reasonLocalizationKey: "statement.import.categorization.reason.subscriptions_billing",
             keywords: ["APPLE COM BILL", "APPLECOM BILL", "T MOBILE", "TMOBILE", "CURSOR", "AI POWERED IDE"]
         ),
         DeterministicCategoryRule(
             id: "entertainment-events-gaming",
             targetBuiltInCategory: .entertainment,
             confidence: 0.88,
-            reason: "Entertainment venue, ticketing, or gaming keyword matched.",
+            reasonLocalizationKey: "statement.import.categorization.reason.entertainment_events_gaming",
             keywords: ["ARENA KLUB", "TICKETMASTER", "GAMING CLUB", "GAME CLUB"]
         ),
         DeterministicCategoryRule(
             id: "fees-provision",
             targetBuiltInCategory: .other,
             confidence: 0.86,
-            reason: "Fee/provision descriptor matched.",
+            reasonLocalizationKey: "statement.import.categorization.reason.fees_provision",
             keywords: ["OPLATA", "PROWIZJA", "COMMISSION", "FEE"]
         ),
         DeterministicCategoryRule(
             id: "transfer-phone-safe-fallback",
             targetBuiltInCategory: .other,
             confidence: 0.45,
-            reason: "Transfer-to-phone descriptor routed to safe fallback category.",
+            reasonLocalizationKey: "statement.import.categorization.reason.transfer_phone_safe_fallback",
             keywords: ["TRANSFER TO THE PHONE", "TRANSFER TO PHONE", "BLIK TRANSFER TO MOBILE"]
         )
     ]
@@ -84,7 +84,7 @@ struct DeterministicCategorizationResolver {
             return makeSuggestion(
                 category: fallbackCategory(in: snapshot),
                 confidence: CategorizationThresholds.fallbackConfidence,
-                reason: "Description empty or invalid after normalization. Routed to safe fallback."
+                reasonLocalizationKey: "statement.import.categorization.reason.empty_normalized"
             )
         }
 
@@ -95,7 +95,7 @@ struct DeterministicCategorizationResolver {
             return makeSuggestion(
                 category: learnedCategory,
                 confidence: 1.0,
-                reason: "Matched your previous manual correction for this merchant."
+                reasonLocalizationKey: "statement.import.categorization.reason.learned_merchant"
             )
         }
 
@@ -104,7 +104,7 @@ struct DeterministicCategorizationResolver {
             return makeSuggestion(
                 category: category,
                 confidence: matched.confidence,
-                reason: matched.reason
+                reasonLocalizationKey: matched.reasonLocalizationKey
             )
         }
 
@@ -112,7 +112,7 @@ struct DeterministicCategorizationResolver {
             return makeSuggestion(
                 category: directNameMatch.category,
                 confidence: directNameMatch.confidence,
-                reason: directNameMatch.reason
+                reasonLocalizationKey: directNameMatch.reasonLocalizationKey
             )
         }
 
@@ -120,7 +120,7 @@ struct DeterministicCategorizationResolver {
         return makeSuggestion(
             category: fallback,
             confidence: CategorizationThresholds.fallbackConfidence,
-            reason: "No deterministic rule matched. Routed to safe fallback."
+            reasonLocalizationKey: "statement.import.categorization.reason.no_rule_fallback"
         )
     }
 
@@ -153,7 +153,7 @@ struct DeterministicCategorizationResolver {
         return CategorySuggestion(
             category: category,
             confidence: confidence,
-            reason: "Matched active category name in transaction description."
+            reasonLocalizationKey: "statement.import.categorization.reason.category_name_in_description"
         )
     }
 
@@ -174,12 +174,12 @@ struct DeterministicCategorizationResolver {
     private func makeSuggestion(
         category: CategoryReference,
         confidence: Double,
-        reason: String
+        reasonLocalizationKey: String
     ) -> CategorySuggestion {
         let clamped = min(max(confidence, 0), 1)
-        let safeReason = reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "Categorization matched using deterministic policy."
-            : reason
-        return CategorySuggestion(category: category, confidence: clamped, reason: safeReason)
+        let key = reasonLocalizationKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "statement.import.categorization.reason.policy_default"
+            : reasonLocalizationKey
+        return CategorySuggestion(category: category, confidence: clamped, reasonLocalizationKey: key)
     }
 }

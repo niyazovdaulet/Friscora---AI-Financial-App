@@ -139,7 +139,7 @@ struct NewJobView: View {
                 .font(.headline)
                 .foregroundColor(AppColorTheme.textPrimary)
             
-            TextField("e.g., Software Engineer", text: $name)
+            TextField(L10n("job.title_placeholder"), text: $name)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(AppColorTheme.elevatedBackground)

@@ -31,11 +31,11 @@ struct AuthenticationSetupView: View {
                                 .font(.system(size: 60))
                                 .foregroundColor(.white)
                             
-                            Text("Create Passcode")
+                            Text(L10n("auth.create_passcode"))
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.white)
                             
-                            Text("Enter a 4-digit passcode to secure your data")
+                            Text(L10n("auth.create_passcode_subtitle"))
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                                 .multilineTextAlignment(.center)
@@ -59,11 +59,11 @@ struct AuthenticationSetupView: View {
                                 .font(.system(size: 60))
                                 .foregroundColor(.white)
                             
-                            Text("Confirm Passcode")
+                            Text(L10n("auth.confirm_passcode"))
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.white)
                             
-                            Text("Re-enter your passcode")
+                            Text(L10n("auth.confirm_passcode_subtitle"))
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                                 .multilineTextAlignment(.center)
@@ -89,27 +89,38 @@ struct AuthenticationSetupView: View {
                 }
                 .padding(40)
             }
-            .navigationTitle("Setup Authentication")
+            .navigationTitle(L10n("auth.nav.setup_authentication"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(L10n("common.cancel")) {
                         isPresented = false
                     }
                     .foregroundColor(.white)
                 }
             }
-            .alert("Enable \(authService.biometricType == .faceID ? "Face ID" : "Touch ID")?", isPresented: $showBiometricAlert) {
-                Button("Enable") {
+            .alert(
+                String(
+                    format: L10n("onboarding.enable_biometric_title"),
+                    authService.biometricType == .faceID ? L10n("auth.face_id") : L10n("auth.touch_id")
+                ),
+                isPresented: $showBiometricAlert
+            ) {
+                Button(L10n("onboarding.enable")) {
                     biometricEnabled = true
                     completeSetup()
                 }
-                Button("Not Now", role: .cancel) {
+                Button(L10n("onboarding.not_now"), role: .cancel) {
                     biometricEnabled = false
                     completeSetup()
                 }
             } message: {
-                Text("You can use \(authService.biometricType == .faceID ? "Face ID" : "Touch ID") to quickly unlock Friscora")
+                Text(
+                    String(
+                        format: L10n("onboarding.face_id_message"),
+                        authService.biometricType == .faceID ? L10n("auth.face_id") : L10n("auth.touch_id")
+                    )
+                )
             }
         }
     }

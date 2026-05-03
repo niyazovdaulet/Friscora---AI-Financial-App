@@ -151,7 +151,32 @@ struct AppColorTheme {
     
     /// Inactive tab icon
     static let tabInactive = Color(hex: "5A7A99")
-    
+
+    /// Legacy solid chrome (prefer floating glass in `CustomTabBar`); kept for fallbacks / previews.
+    static let customTabBarChrome = Color(hex: "C8E0F2")
+
+    /// Pills, FAB gradient, and glow highlights (steel blue) — primary accent on the Add control.
+    static let customTabBarAccent = Color(hex: "7BBAE8")
+
+    /// Selected tab icon + label on **dark / blurred** chrome.
+    static let customTabBarLabelSelected = Color(hex: "7BBAE8")
+
+    /// Inactive tab labels and icons on **dark / blurred** chrome.
+    static let customTabBarInactive = Color.white
+
+    // FI-UI-REFINE: Lighter tint so ultraThinMaterial reads as frosted air, not a dark slab.
+    /// Very light darkening over `Material` — mostly transparent with **minimal** blur via `ultraThinMaterial`.
+    static let customTabBarGlassTint = Color.black.opacity(0.04)
+
+    /// Selected tab “chip” fill on dark glass (subtle lift, not accent — accent stays on FAB).
+    static let customTabBarSelectionFill = Color.white.opacity(0.12)
+
+    /// Selected tab chip stroke on dark glass.
+    static let customTabBarSelectionStroke = Color.white.opacity(0.18)
+
+    /// FAB surface when Add is not selected (richer cool navy).
+    static let customTabBarFabInactive = Color(hex: "152A42")
+
     // MARK: - Background Colors
     
     /// Main background (Deep Navy) - Layer 1
@@ -319,6 +344,18 @@ struct AppColorTheme {
     static var goalsCompletedGradient: LinearGradient {
         LinearGradient(
             colors: [powderBlue.opacity(0.5), powderBlue.opacity(0.3)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// Accent for Add → Goals contribution flow (sapphire-light blue, distinct from income green).
+    static let goalsAddAccent = Color(hex: "4DA3FF")
+
+    /// Gradient for Add → Goals tab controls and primary actions.
+    static var goalsAddAccentGradient: LinearGradient {
+        LinearGradient(
+            colors: [Color(hex: "63B2FF"), Color(hex: "2A7BDB")],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

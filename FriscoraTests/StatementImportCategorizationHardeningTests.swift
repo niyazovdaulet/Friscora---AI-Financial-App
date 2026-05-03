@@ -49,7 +49,7 @@ final class StatementImportCategorizationHardeningTests: XCTestCase {
             snapshot: snapshot
         )
         XCTAssertEqual(suggestion.category.builtInCategory, .other)
-        XCTAssertFalse(suggestion.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        XCTAssertFalse(suggestion.reasonLocalizationKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         XCTAssertGreaterThanOrEqual(suggestion.confidence, 0)
         XCTAssertLessThanOrEqual(suggestion.confidence, 1)
     }
@@ -69,6 +69,6 @@ final class StatementImportCategorizationHardeningTests: XCTestCase {
         )
         XCTAssertGreaterThanOrEqual(suggestion.confidence, 0)
         XCTAssertLessThanOrEqual(suggestion.confidence, 1)
-        XCTAssertFalse(suggestion.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        XCTAssertFalse(suggestion.reasonLocalizationKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 }

@@ -12,11 +12,13 @@ import UIKit
 enum AddType {
     case expense
     case income
+    case goalContribution
 }
 
 struct AddExpenseView: View {
     @StateObject private var expenseViewModel = ExpenseViewModel()
     @StateObject private var incomeViewModel = IncomeViewModel()
+    @StateObject private var goalService = GoalService.shared
     @StateObject private var customCategoryService = CustomCategoryService.shared
     @ObservedObject private var categoryOrderService = ExpenseCategoryOrderService.shared
     @State private var selectedTabIndex: Int = 0
@@ -25,20 +27,32 @@ struct AddExpenseView: View {
     @FocusState private var isNoteFocused: Bool
     @State private var showSuccessMessage = false
     @State private var showEditCategoriesSheet = false
+    @State private var showGoalsSheet = false
+    @State private var showAddGoalSheet = false
     @State private var amountDisplay: String = ""  // Formatted with commas for display
     @State private var amountFocusTrigger = 0
+    @State private var selectedGoalId: UUID? = nil
+    @State private var goalNote: String = ""
+    @State private var goalSelectedDate: Date = Date()
     @Environment(\.dismiss) private var dismiss
     
     // For navigation to Dashboard
     @Binding var selectedTab: Int
+    /// When true, `MainTabView` hides the floating `CustomTabBar` so it cannot cover the UIKit amount `inputView` keyboard.
+    @Binding var suppressFloatingTabBar: Bool
     
-    init(selectedTab: Binding<Int> = .constant(0)) {
+    init(selectedTab: Binding<Int> = .constant(0), suppressFloatingTabBar: Binding<Bool> = .constant(false)) {
         _selectedTab = selectedTab
+        _suppressFloatingTabBar = suppressFloatingTabBar
     }
     
     // Computed property to sync selectedType with selectedTabIndex
     private var selectedType: AddType {
-        selectedTabIndex == 0 ? .expense : .income
+        switch selectedTabIndex {
+        case 0: return .expense
+        case 1: return .income
+        default: return .goalContribution
+        }
     }
     
     var body: some View {
@@ -65,6 +79,11 @@ struct AddExpenseView: View {
                         incomeContent
                             .dismissKeyboardOnBackgroundTap()
                             .tag(1)
+
+                        // Goals tab
+                        goalsContent
+                            .dismissKeyboardOnBackgroundTap()
+                            .tag(2)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                 }
@@ -129,8 +148,21 @@ struct AddExpenseView: View {
                     .presentationCornerRadius(24)
                     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
+            .sheet(isPresented: $showGoalsSheet) {
+                GoalsView()
+                    .presentationCornerRadius(24)
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            }
+            .sheet(isPresented: $showAddGoalSheet) {
+                AddGoalView()
+                    .presentationCornerRadius(24)
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            }
             .onAppear {
                 applyLastUsedFromPersistence()
+                if selectedGoalId == nil {
+                    selectedGoalId = goalService.activeGoals.first?.id
+                }
             }
             .onChange(of: showEditCategoriesSheet) { _, isOpen in
                 if !isOpen {
@@ -139,6 +171,13 @@ struct AddExpenseView: View {
             }
             .onReceive(categoryOrderService.$orderedTokens) { _ in
                 snapSelectionToQuickPickerIfNeeded()
+            }
+            .onReceive(goalService.$goals) { _ in
+                if let selectedGoalId,
+                   goalService.activeGoals.contains(where: { $0.id == selectedGoalId }) {
+                    return
+                }
+                selectedGoalId = goalService.activeGoals.first?.id
             }
         }
     }
@@ -191,6 +230,32 @@ struct AddExpenseView: View {
                 .foregroundColor(selectedTabIndex == 1 ? AppColorTheme.textPrimary : AppColorTheme.textSecondary)
                 .cornerRadius(16)
             }
+
+            // Goals button
+            Button {
+                HapticHelper.selection()
+                withAnimation(AppAnimation.tabSwitch) {
+                    selectedTabIndex = 2
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "target")
+                        .font(.system(size: 15, weight: .bold))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundColor(selectedTabIndex == 2 ? AppColorTheme.textPrimary : AppColorTheme.textSecondary)
+                        .frame(width: 16)
+                    Text(L10n("add_transaction.goals"))
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(
+                    selectedTabIndex == 2 ?
+                    AppColorTheme.goalsAddAccentGradient : nil
+                )
+                .foregroundColor(selectedTabIndex == 2 ? AppColorTheme.textPrimary : AppColorTheme.textSecondary)
+                .cornerRadius(16)
+            }
         }
         .background(AppColorTheme.elevatedBackground)
         .cornerRadius(16)
@@ -231,6 +296,24 @@ struct AddExpenseView: View {
             .padding(.bottom, canSave ? 0 : 20)
         }
     }
+
+    // MARK: - Goals Content
+    private var goalsContent: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                amountInputCard
+                goalsSelectorCard
+                goalDetailsDisclosure
+                if canSave {
+                    Spacer()
+                        .frame(height: 80)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, canSave ? 0 : 20)
+        }
+    }
     
     // MARK: - Amount Input Card (Smaller)
     private var amountInputCard: some View {
@@ -248,11 +331,7 @@ struct AddExpenseView: View {
                     .foregroundColor(AppColorTheme.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(
-                        selectedType == .expense ?
-                        AppColorTheme.negativeGradient :
-                        AppColorTheme.positiveGradient
-                    )
+                    .background(amountBadgeGradient)
                     .cornerRadius(10)
                     .shadow(color: selectedType == .expense ?
                             AppColorTheme.negative.opacity(0.3) :
@@ -267,16 +346,24 @@ struct AddExpenseView: View {
                     onFormatChange: { stripped in
                         if selectedType == .expense {
                             expenseViewModel.amount = stripped
-                        } else {
+                        } else if selectedType == .income {
                             incomeViewModel.amount = stripped
+                        } else {
+                            // Goals tab uses the same input formatting flow, stored via shared display state.
                         }
                     },
                     onFocusChange: { focused in
                         isAmountFocused = focused
+                        suppressFloatingTabBar = focused
                     }
                 )
                 .onChange(of: selectedTabIndex) { _, _ in
-                    let raw = selectedType == .expense ? expenseViewModel.amount : incomeViewModel.amount
+                    let raw: String
+                    switch selectedType {
+                    case .expense: raw = expenseViewModel.amount
+                    case .income: raw = incomeViewModel.amount
+                    case .goalContribution: raw = CurrencyFormatter.stripAmountFormatting(amountDisplay)
+                    }
                     amountDisplay = CurrencyFormatter.formatAmountForDisplay(raw)
                 }
                 .onAppear {
@@ -292,6 +379,14 @@ struct AddExpenseView: View {
                 .shadow(color: Color.primary.opacity(0.1), radius: 12, x: 0, y: 4)
         )
         .scaleEffect(isAmountFocused ? 1.01 : 1.0)
+    }
+
+    private var amountBadgeGradient: LinearGradient {
+        switch selectedType {
+        case .expense: return AppColorTheme.negativeGradient
+        case .income: return AppColorTheme.positiveGradient
+        case .goalContribution: return AppColorTheme.goalsAddAccentGradient
+        }
     }
     
     // MARK: - Category Selector Card (Smaller)
@@ -314,7 +409,7 @@ struct AddExpenseView: View {
                         Text(L10n("common.edit"))
                             .font(.caption)
                     }
-                    .foregroundColor(AppColorTheme.accent)
+                    .foregroundColor(.white)
                 }
             }
             
@@ -364,6 +459,87 @@ struct AddExpenseView: View {
                 .foregroundColor(AppColorTheme.textTertiary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(AppColorTheme.cardBackground)
+                .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 4)
+        )
+    }
+
+    // MARK: - Goal Selector Card
+    private var goalsSelectorCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L10n("add_transaction.select_goal"))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColorTheme.textSecondary)
+                Spacer()
+                Button {
+                    HapticHelper.lightImpact()
+                    showAddGoalSheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.caption.weight(.semibold))
+                        Text(L10n("add_transaction.create_goal"))
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundColor(AppColorTheme.goalsAddAccent)
+                }
+            }
+
+            if goalService.activeGoals.isEmpty {
+                EmptyStateView(
+                    icon: "target",
+                    message: L10n("add_transaction.no_active_goals"),
+                    actionTitle: L10n("add_transaction.create_goal"),
+                    action: { showGoalsSheet = true },
+                    compact: true
+                )
+            } else {
+                ForEach(goalService.activeGoals.prefix(4)) { goal in
+                    let isSelected = selectedGoalId == goal.id
+                    Button {
+                        HapticHelper.selection()
+                        selectedGoalId = goal.id
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: isSelected ? "target" : "circle")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(isSelected ? AppColorTheme.goalsAddAccent : AppColorTheme.textTertiary)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(goal.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(AppColorTheme.textPrimary)
+                                    .lineLimit(1)
+                                Text("\(CurrencyFormatter.format(goal.currentAmount, currencyCode: goal.effectiveCurrency)) / \(CurrencyFormatter.format(goal.targetAmount, currencyCode: goal.effectiveCurrency))")
+                                    .font(.caption)
+                                    .foregroundColor(AppColorTheme.textSecondary)
+                            }
+
+                            Spacer()
+
+                            Text("\(Int(goal.progress * 100))%")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(AppColorTheme.goalsAddAccent)
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(isSelected ? AppColorTheme.goalsAddAccent.opacity(0.14) : AppColorTheme.elevatedBackground)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(isSelected ? AppColorTheme.goalsAddAccent.opacity(0.4) : AppColorTheme.cardBorder, lineWidth: 1)
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .padding(16)
         .background(
@@ -436,6 +612,50 @@ struct AddExpenseView: View {
         )
     }
 
+    private var goalDetailsDisclosure: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n("common.date"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                    datePickerRow(selection: $goalSelectedDate, accent: AppColorTheme.goalsAddAccent)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n("add_transaction.note_optional"))
+                        .font(.caption)
+                        .foregroundColor(AppColorTheme.textSecondary)
+                    noteField(text: $goalNote)
+                }
+                if showGoalContributionCapHint {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundColor(AppColorTheme.warning)
+                        Text(String(format: L10n("goals.add_more_remaining"), formatGoalRemainingAmount()))
+                            .font(.caption)
+                            .foregroundColor(AppColorTheme.warning)
+                    }
+                    .padding(12)
+                    .background(AppColorTheme.warning.opacity(0.15))
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.top, 8)
+        } label: {
+            Text(L10n("add_transaction.details"))
+                .font(AppTypography.captionMedium)
+                .foregroundColor(AppColorTheme.textSecondary)
+        }
+        .tint(AppColorTheme.goalsAddAccent)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(AppColorTheme.cardBackground)
+                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 3)
+        )
+    }
+
     private func datePickerRow(selection: Binding<Date>, accent: Color) -> some View {
         HStack {
             Image(systemName: "calendar")
@@ -479,13 +699,13 @@ struct AddExpenseView: View {
             .background(
                 selectedType == .expense ?
                 AppColorTheme.negativeGradient :
-                AppColorTheme.positiveGradient
+                (selectedType == .income ? AppColorTheme.positiveGradient : AppColorTheme.goalsAddAccentGradient)
             )
             .cornerRadius(16)
             .shadow(
                 color: selectedType == .expense ?
                 AppColorTheme.negative.opacity(0.4) :
-                AppColorTheme.positive.opacity(0.4),
+                (selectedType == .income ? AppColorTheme.positive.opacity(0.4) : AppColorTheme.goalsAddAccent.opacity(0.4)),
                 radius: 15, x: 0, y: 8
             )
         }
@@ -495,6 +715,7 @@ struct AddExpenseView: View {
         // Collapse focus first so the keyboard animates out before save feedback.
         isAmountFocused = false
         isNoteFocused = false
+        suppressFloatingTabBar = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             saveTransaction()
@@ -502,7 +723,45 @@ struct AddExpenseView: View {
     }
     
     private var canSave: Bool {
-        selectedType == .expense ? expenseViewModel.canSaveExpense : incomeViewModel.canSaveIncome
+        switch selectedType {
+        case .expense:
+            return expenseViewModel.canSaveExpense
+        case .income:
+            return incomeViewModel.canSaveIncome
+        case .goalContribution:
+            guard selectedGoal != nil,
+                  let amount = CurrencyFormatter.parsedAmount(from: amountDisplayRaw),
+                  amount > 0 else { return false }
+            return true
+        }
+    }
+
+    private var selectedGoal: Goal? {
+        guard let selectedGoalId else { return nil }
+        return goalService.goals.first(where: { $0.id == selectedGoalId && !$0.isCompleted })
+    }
+
+    private var amountDisplayRaw: String {
+        switch selectedType {
+        case .expense: return expenseViewModel.amount
+        case .income: return incomeViewModel.amount
+        case .goalContribution: return CurrencyFormatter.stripAmountFormatting(amountDisplay)
+        }
+    }
+
+    private var showGoalContributionCapHint: Bool {
+        guard selectedType == .goalContribution,
+              let selectedGoal,
+              let amount = CurrencyFormatter.parsedAmount(from: amountDisplayRaw),
+              amount > 0 else { return false }
+        let remaining = max(selectedGoal.targetAmount - selectedGoal.currentAmount, 0)
+        return remaining > 0 && amount > remaining
+    }
+
+    private func formatGoalRemainingAmount() -> String {
+        guard let selectedGoal else { return CurrencyFormatter.format(0, currencyCode: UserProfileService.shared.profile.currency) }
+        let remaining = max(selectedGoal.targetAmount - selectedGoal.currentAmount, 0)
+        return CurrencyFormatter.format(remaining, currencyCode: selectedGoal.effectiveCurrency)
     }
     
     private func applyLastUsedFromPersistence() {
@@ -543,9 +802,13 @@ struct AddExpenseView: View {
             incomeViewModel.amount = ""
             incomeViewModel.note = ""
             incomeViewModel.selectedDate = Date()
+            goalNote = ""
+            goalSelectedDate = Date()
+            selectedGoalId = goalService.activeGoals.first?.id
             amountDisplay = ""
             isAmountFocused = false
             isNoteFocused = false
+            suppressFloatingTabBar = false
         }
         applyLastUsedFromPersistence()
         HapticHelper.lightImpact()
@@ -557,12 +820,32 @@ struct AddExpenseView: View {
         if selectedType == .expense {
             LastUsedExpenseCategory.save(category: expenseViewModel.selectedCategory, customId: selectedCustomCategoryId)
             expenseViewModel.saveExpense(customCategoryId: selectedCustomCategoryId)
-        } else {
+        } else if selectedType == .income {
             incomeViewModel.saveIncome()
+        } else {
+            saveGoalContribution()
         }
 
         clearFormAfterSuccessfulSave()
         showSuccessMessage = true
+    }
+
+    private func saveGoalContribution() {
+        guard let goal = selectedGoal,
+              let amount = CurrencyFormatter.parsedAmount(from: amountDisplayRaw),
+              amount > 0 else { return }
+
+        let remaining = max(goal.targetAmount - goal.currentAmount, 0)
+        let amountToAdd = min(amount, remaining)
+        guard amountToAdd > 0 else { return }
+
+        let activity = GoalActivity(
+            goalId: goal.id,
+            amount: amountToAdd,
+            date: goalSelectedDate,
+            note: goalNote.isEmpty ? nil : goalNote
+        )
+        goalService.addActivity(activity)
     }
 
     /// Clears amounts and resets dates to today; restores expense category from UserDefaults (`friscora.lastExpenseCategory`, `friscora.lastCustomCategoryId`).
@@ -574,9 +857,13 @@ struct AddExpenseView: View {
             incomeViewModel.amount = ""
             incomeViewModel.note = ""
             incomeViewModel.selectedDate = Date()
+            goalNote = ""
+            goalSelectedDate = Date()
+            selectedGoalId = goalService.activeGoals.first?.id
             amountDisplay = ""
             isAmountFocused = false
             isNoteFocused = false
+            suppressFloatingTabBar = false
         }
         applyLastUsedFromPersistence()
     }
@@ -740,30 +1027,53 @@ struct SuccessSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showContent = false
     @State private var checkmarkScale: CGFloat = 0.3
-    @State private var hasDismissed = false
+
+    private var accentColor: Color {
+        switch type {
+        case .expense: return AppColorTheme.negative
+        case .income: return AppColorTheme.positive
+        case .goalContribution: return AppColorTheme.goalsAddAccent
+        }
+    }
+
+    private var titleText: String {
+        switch type {
+        case .expense: return L10n("add_transaction.expense_added")
+        case .income: return L10n("add_transaction.income_added")
+        case .goalContribution: return L10n("add_transaction.goals_added")
+        }
+    }
+
+    private var successObjectLabel: String {
+        switch type {
+        case .expense: return L10n("activity.expense")
+        case .income: return L10n("activity.income")
+        case .goalContribution: return L10n("add_transaction.goals")
+        }
+    }
     
     var body: some View {
         VStack(spacing: AppSpacing.m) {
             ZStack {
                 Circle()
-                    .fill((type == .expense ? AppColorTheme.negative : AppColorTheme.positive).opacity(0.2))
+                    .fill(accentColor.opacity(0.2))
                     .frame(width: 88, height: 88)
                     .scaleEffect(showContent ? 1.0 : 0.5)
                     .opacity(showContent ? 1.0 : 0)
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 56))
-                    .foregroundColor(type == .expense ? AppColorTheme.negative : AppColorTheme.positive)
+                    .foregroundColor(accentColor)
                     .scaleEffect(checkmarkScale)
             }
             .animation(AppAnimation.sheetPresent.delay(0.05), value: showContent)
             .animation(.spring(response: 0.45, dampingFraction: 0.65), value: checkmarkScale)
             
-            Text(type == .expense ? L10n("add_transaction.expense_added") : L10n("add_transaction.income_added"))
+            Text(titleText)
                 .font(AppTypography.cardTitle)
                 .foregroundColor(AppColorTheme.textPrimary)
                 .opacity(showContent ? 1.0 : 0)
             
-            Text(String(format: L10n("add_transaction.saved_success"), type == .expense ? L10n("activity.expense") : L10n("activity.income")))
+            Text(String(format: L10n("add_transaction.saved_success"), successObjectLabel))
                 .font(AppTypography.caption)
                 .foregroundColor(AppColorTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -772,8 +1082,6 @@ struct SuccessSheetView: View {
             
             Button {
                 HapticHelper.mediumImpact()
-                guard !hasDismissed else { return }
-                hasDismissed = true
                 dismiss()
                 onDismiss()
             } label: {
@@ -792,13 +1100,6 @@ struct SuccessSheetView: View {
             }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.65).delay(0.15)) {
                 checkmarkScale = 1.0
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                if showContent && !hasDismissed {
-                    hasDismissed = true
-                    dismiss()
-                    onDismiss()
-                }
             }
         }
     }

@@ -46,6 +46,7 @@ final class StatementImportHomeViewModel: ObservableObject {
     }
 
     func skipOnboarding() {
+        if dontShowOnboardingAgain { UserDefaults.standard.set(true, forKey: onboardingKey) }
         showOnboarding = false
     }
 
@@ -143,8 +144,8 @@ final class StatementImportHomeViewModel: ObservableObject {
 @MainActor
 final class StatementScanningViewModel: ObservableObject, Identifiable {
     let id = UUID()
-    @Published var statusTitle = "Analyzing statement…"
-    @Published var statusSubtitle = "Extracting pages…"
+    @Published var statusTitle = L10n("statement.import.scan_status_title")
+    @Published var statusSubtitle = L10n("statement.import.progress.extracting_pages")
     @Published var failedMessage: String?
     @Published var displayName: String
 
@@ -176,8 +177,8 @@ final class StatementScanningViewModel: ObservableObject, Identifiable {
         Task {
             let scanFlowStartedAt = Date()
             do {
-                let progress: StatementParserService.ParseProgressHandler = { [weak self] step in
-                    Task { @MainActor in self?.statusSubtitle = step }
+                let progress: StatementParserService.ParseProgressHandler = { [weak self] stepKey in
+                    Task { @MainActor in self?.statusSubtitle = L10n(stepKey) }
                 }
                 let file: ImportedStatementFile
                 let session: StatementImportSession
@@ -313,7 +314,7 @@ final class StatementImportReviewViewModel: ObservableObject, Identifiable {
         let skipIDs = skipDuplicates ? Set(duplicateWarnings.map(\.parsedTransactionID)) : []
         importedCount = coordinator.commit(file: file, session: session, skipDuplicateIDs: skipIDs)
         if importedCount == 0 {
-            postCommitMessage = "No new transactions were imported. All selected rows look like duplicates."
+            postCommitMessage = L10n("statement.import.commit.no_new_imports")
             return
         }
         showSuccessSheet = true
@@ -378,9 +379,14 @@ final class StatementImportReviewViewModel: ObservableObject, Identifiable {
                 guard token == self.conversionTaskToken else { return }
                 let income = CurrencyFormatter.format(incomeTotal, currencyCode: targetCurrency)
                 let expenses = CurrencyFormatter.format(expenseTotal, currencyCode: targetCurrency)
-                var hint = "~ Converted to \(targetCurrency): Income \(income) • Expenses \(expenses)"
+                var hint = String(
+                    format: L10n("statement.import.converted_totals_format"),
+                    targetCurrency,
+                    income,
+                    expenses
+                )
                 if hadFailure {
-                    hint += " (some rates unavailable)"
+                    hint += L10n("statement.import.converted_totals_rates_partial")
                 }
                 self.convertedTotalsHint = hint
             }
@@ -453,15 +459,15 @@ final class StatementTransactionEditViewModel: ObservableObject {
 
     func buildUpdated() -> ParsedStatementTransaction? {
         guard !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            error = "Description is required."
+            error = L10n("statement.import.validation.description_required")
             return nil
         }
         guard let value = Double(amount.replacingOccurrences(of: ",", with: ".")), value > 0 else {
-            error = "Amount must be valid."
+            error = L10n("statement.import.validation.amount_invalid")
             return nil
         }
         guard currency.count >= 3 else {
-            error = "Currency should be valid."
+            error = L10n("statement.import.validation.currency_invalid")
             return nil
         }
         var updated = transaction
@@ -478,7 +484,7 @@ final class StatementTransactionEditViewModel: ObservableObject {
             updated.suggestedBuiltInCategory = selected?.builtInCategory
             updated.suggestedCustomCategoryID = selected?.customCategoryID
             updated.categorizationSource = .manual
-            updated.categorizationReasons = ["Selected manually during statement review."]
+            updated.categorizationReasons = ["statement.import.categorization.reason.manual_review"]
             updated.categorizationConfidence = 1.0
             updated.isCategorizationManuallyOverridden = true
         } else {

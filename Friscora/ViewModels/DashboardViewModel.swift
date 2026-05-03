@@ -222,6 +222,24 @@ class DashboardViewModel: ObservableObject {
     func monthString(for date: Date) -> String {
         LocalizationManager.shared.monthYearString(for: date)
     }
+
+    // MARK: - Category breakdown ordering (Dashboard)
+
+    /// Full ordered rows for the dashboard “Spending by category” list: descending amount, then ascending `name` for stable ties (matches prior `sorted { $0.value > $1.value }` with deterministic tie-break).
+    static func orderedCategoryBreakdownForDashboard(_ breakdown: [CategoryDisplayInfo: Double]) -> [(category: CategoryDisplayInfo, amount: Double)] {
+        breakdown.map { (category: $0.key, amount: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.amount != rhs.amount {
+                    return lhs.amount > rhs.amount
+                }
+                return lhs.category.name.localizedStandardCompare(rhs.category.name) == .orderedAscending
+            }
+    }
+
+    /// Ordered spending rows for `categoryBreakdown` (selected dashboard month).
+    var orderedCategorySpendingForDashboard: [(category: CategoryDisplayInfo, amount: Double)] {
+        Self.orderedCategoryBreakdownForDashboard(categoryBreakdown)
+    }
     
     func updateData() {
         monthlyIncome = incomeService.totalIncomeForMonth(selectedMonth)

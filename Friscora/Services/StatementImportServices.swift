@@ -14,17 +14,17 @@ enum StatementImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedFile:
-            return "This file is not a supported PDF statement."
+            return L10n("statement.import.error.unsupported_file")
         case .unreadableFile:
-            return "Friscora couldn't read this file."
+            return L10n("statement.import.error.unreadable_file")
         case .corruptedPDF:
-            return "This PDF appears corrupted or unsupported."
+            return L10n("statement.import.error.corrupted_pdf")
         case .noExtractableText:
-            return "This PDF appears to be unsupported or image-based."
+            return L10n("statement.import.error.no_extractable_text")
         case .noTransactionsDetected:
-            return "We couldn't identify transactions in this statement."
+            return L10n("statement.import.error.no_transactions")
         case .storageFailure:
-            return "We couldn't save this statement locally."
+            return L10n("statement.import.error.storage_failure")
         }
     }
 }
@@ -101,6 +101,17 @@ final class StatementFileStore {
         saveFiles(files)
     }
 
+    /// Deletes every imported PDF on disk and clears the file index (Erase all data).
+    func removeAllImportedPDFsAndMetadata() {
+        if fm.fileExists(atPath: importsDirectory.path),
+           let items = try? fm.contentsOfDirectory(at: importsDirectory, includingPropertiesForKeys: nil) {
+            for url in items {
+                try? fm.removeItem(at: url)
+            }
+        }
+        saveFiles([])
+    }
+
     private func computeFileHash(for url: URL) throws -> String {
         let data = try Data(contentsOf: url)
         let digest = SHA256.hash(data: data)
@@ -124,7 +135,7 @@ final class StatementParserService {
 
     func parseStatement(from file: ImportedStatementFile, progress: ParseProgressHandler? = nil) throws -> StatementParseResult {
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        progress?("Extracting pages…")
+        progress?("statement.import.progress.extracting_pages")
         guard let pdf = PDFDocument(url: file.localURL) else { throw StatementImportError.corruptedPDF }
         let pageCount = pdf.pageCount
         guard pageCount > 0 else { throw StatementImportError.noExtractableText }
@@ -135,11 +146,11 @@ final class StatementParserService {
             lines.append(contentsOf: pageText.components(separatedBy: .newlines))
         }
 
-        progress?("Detecting transactions…")
+        progress?("statement.import.progress.detecting_transactions")
         let normalizedLines = normalizeLines(lines)
         if normalizedLines.isEmpty { throw StatementImportError.noExtractableText }
 
-        progress?("Identifying amounts…")
+        progress?("statement.import.progress.identifying_amounts")
         let blocks = parseTransactionBlocks(from: normalizedLines)
         var parsed: [ParsedStatementTransaction] = []
         var parseWarnings: [String] = []
@@ -155,18 +166,18 @@ final class StatementParserService {
 
         // Fallback for bank statements that are table-like (Date Amount Details) and don't use Santander markers.
         if parsed.isEmpty {
-            progress?("Trying generic statement format…")
+            progress?("statement.import.progress.trying_generic_format")
             parsed = parseGenericTransactionRows(from: normalizedLines)
         }
 
         if parsed.count < 3, !parsed.isEmpty {
-            parseWarnings.append("Some transactions need manual review before importing.")
+            parseWarnings.append("statement.import.warning.manual_review_possible")
         }
         if let missingAmount = rejectionCounts[.missingAmount], missingAmount > 0 {
-            parseWarnings.append("\(missingAmount) block(s) skipped due to missing amount.")
+            parseWarnings.append("statement.import.warning.blocks_skipped_missing_amount|\(missingAmount)")
         }
         if let missingDate = rejectionCounts[.missingOperationDate], missingDate > 0 {
-            parseWarnings.append("\(missingDate) block(s) skipped due to missing date.")
+            parseWarnings.append("statement.import.warning.blocks_skipped_missing_date|\(missingDate)")
         }
         logParseDebugReport(
             pageCount: pageCount,
@@ -176,7 +187,7 @@ final class StatementParserService {
             rejectionCounts: rejectionCounts
         )
         if parsed.isEmpty { throw StatementImportError.noTransactionsDetected }
-        progress?("Preparing review…")
+        progress?("statement.import.progress.preparing_review")
         return StatementParseResult(pageCount: pageCount, transactions: parsed, warnings: parseWarnings)
     }
 
@@ -336,13 +347,13 @@ final class StatementParserService {
         var warnings: [String] = []
         let description = buildDescription(from: block)
         if description.isEmpty {
-            warnings.append("Description is short")
+            warnings.append("statement.import.tx_warning.description_short")
         }
         if abs(amount.value) < 0.01 {
-            warnings.append("Amount looks unusual")
+            warnings.append("statement.import.tx_warning.amount_unusual")
         }
         if block.operationDateLine == nil {
-            warnings.append("Used booking date")
+            warnings.append("statement.import.tx_warning.used_booking_date")
         }
 
         var confidence = 0.58
@@ -352,10 +363,10 @@ final class StatementParserService {
         if block.amountLine != nil { confidence += 0.08 }
         if warnings.count >= 2 { confidence -= 0.15 }
         if confidence < 0.65 {
-            warnings.append("Low confidence parse")
+            warnings.append("statement.import.tx_warning.low_confidence_parse")
         }
 
-        let displayDescription = description.isEmpty ? "Imported Transaction" : description
+        let displayDescription = description.isEmpty ? L10n("statement.import.default_transaction_title") : description
         let rawBlock = block.capturedLines.joined(separator: " | ")
         let currency = amount.currency ?? detectCurrency(in: amountLine) ?? UserProfileService.shared.profile.currency
         var direction: ParsedTransactionDirection = amount.value >= 0 ? .income : .expense
@@ -711,7 +722,7 @@ final class StatementParserService {
                 continue
             }
 
-            let displayDescription = description.isEmpty ? "Imported Transaction" : description
+            let displayDescription = description.isEmpty ? L10n("statement.import.default_transaction_title") : description
             let currency = explicitCurrency ?? UserProfileService.shared.profile.currency
             let direction: ParsedTransactionDirection = amountHit.value >= 0 ? .income : .expense
 
@@ -846,7 +857,7 @@ final class TransactionDeduplicationService {
                 normalize(existing.originalImportedDescription ?? existing.note ?? "").contains(tx.normalizedDescription.prefix(10))
             })
             if duplicate {
-                warnings.append(DuplicateTransactionWarning(parsedTransactionID: tx.id, reason: "Possible duplicate"))
+                warnings.append(DuplicateTransactionWarning(parsedTransactionID: tx.id, reason: "statement.import.duplicate.possible"))
             }
         }
         return warnings
@@ -1094,7 +1105,7 @@ final class StatementImportCoordinator {
             updated.suggestedBuiltInCategory = suggestion.category.builtInCategory
             updated.suggestedCustomCategoryID = suggestion.category.customCategoryID
             updated.categorizationConfidence = suggestion.confidence
-            updated.categorizationReasons = [suggestion.reason]
+            updated.categorizationReasons = [suggestion.reasonLocalizationKey]
             updated.categorizationSource = suggestion.category.source
             return updated
         }

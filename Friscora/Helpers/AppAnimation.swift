@@ -16,6 +16,24 @@ enum AppAnimation {
     /// Tab bar and segment changes (MainTabView, AddExpenseView, GoalsView, ScheduleView).
     static let tabSwitch = Animation.spring(response: 0.35, dampingFraction: 0.78)
 
+    /// Custom bottom bar: icon lift, pill, matched motion (premium, low bounce).
+    static let tabBarSpring = Animation.spring(response: 0.38, dampingFraction: 0.88)
+
+    /// FAB select / plus rotation — slightly more expressive than side tabs.
+    static let tabBarFABSpring = Animation.spring(response: 0.42, dampingFraction: 0.82)
+
+    /// Pill indicator settle behind the active tab.
+    static let tabBarPill = Animation.spring(response: 0.34, dampingFraction: 0.9)
+
+    /// Tab bar tap ripple expand (single shot, no loop).
+    static let tabBarRipple = Animation.easeOut(duration: 0.36)
+    
+    /// Selected tab icon micro-animation (quick lift + settle).
+    static let tabIconSelect = Animation.spring(response: 0.22, dampingFraction: 0.62)
+    
+    /// Deselected tab icon reset animation.
+    static let tabIconDeselect = Animation.easeOut(duration: 0.18)
+
     /// Toggle chips, filter segments (e.g. Analytics chart type).
     static let segmentToggle = Animation.spring(response: 0.3, dampingFraction: 0.75)
 
@@ -75,12 +93,6 @@ enum AppAnimation {
 
     /// Bar chart fill progress (slightly longer for bar growth).
     static let chartBarReveal = Animation.easeOut(duration: 0.55)
-
-    /// Analytics income split: segmented capsule grows in with a smooth spring.
-    static let incomeSplitSegmentReveal = Animation.spring(response: 0.55, dampingFraction: 0.86)
-
-    /// Income split segment selection / callout (light).
-    static let incomeSplitCallout = Animation.spring(response: 0.32, dampingFraction: 0.82)
 
     /// Line chart: tap/drag indicator and overlay (short).
     static let lineChartInteraction = Animation.easeInOut(duration: 0.15)

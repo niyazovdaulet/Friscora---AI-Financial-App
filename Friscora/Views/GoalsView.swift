@@ -1210,7 +1210,7 @@ struct EditGoalView: View {
                 }
             }
             
-            TextField("Note (optional)", text: $addNote, axis: .vertical)
+            TextField(L10n("add_transaction.note_optional"), text: $addNote, axis: .vertical)
                 .focused($isNoteFocused)
                 .font(.body)
                 .foregroundColor(AppColorTheme.textPrimary)

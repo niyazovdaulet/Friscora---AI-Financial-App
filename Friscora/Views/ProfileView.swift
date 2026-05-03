@@ -795,6 +795,8 @@ struct EraseDataView: View {
     }
     
     private func eraseAllData() {
+        StatementFileStore().removeAllImportedPDFsAndMetadata()
+
         // Clear all transactional and planning data used by Dashboard/Analytics/Schedule/Goals.
         ExpenseService.shared.expenses.removeAll()
         IncomeService.shared.incomes.removeAll()
@@ -804,6 +806,7 @@ struct EraseDataView: View {
         WorkScheduleService.shared.workDays.removeAll()
         WorkScheduleService.shared.jobs.removeAll()
         WorkScheduleService.shared.personalEvents.removeAll()
+        WorkScheduleService.shared.clearAllPatternsBulkAndSuggestionStateForDataErase()
         
         // Save empty arrays
         if let encoded = try? JSONEncoder().encode([Expense]()) {
@@ -831,8 +834,13 @@ struct EraseDataView: View {
             UserDefaults.standard.set(encoded, forKey: "saved_personal_schedule_events")
         }
 
-        // Reset schedule sharing persisted invite list.
+        // Reset schedule sharing (legacy list + v2 partnership / outgoing invite).
         UserDefaults.standard.removeObject(forKey: "schedule_sharing_active_invites_v1")
+        ScheduleSharingRepository.shared.clearAllPersistedSharingStateForDataErase()
+        ScheduleShareCoordinator.shared.resetInviteRoutingStateForDataErase()
+
+        SalarySyncService.shared.clearAllPersistedDismissalsForDataErase()
+        LearnedMerchantStore.shared.clearAll()
         
         // Reset dashboard/analytics persisted state.
         UserDefaults.standard.removeObject(forKey: "merged_months")
@@ -867,6 +875,10 @@ struct EraseDataView: View {
         WorkScheduleService.shared.loadWorkDays()
         WorkScheduleService.shared.loadJobs()
         WorkScheduleService.shared.loadPersonalEvents()
+        WorkScheduleService.shared.loadWorkPatterns()
+        WorkScheduleService.shared.loadBulkOperations()
+        WorkScheduleService.shared.loadDismissedPatternSuggestions()
+        SalarySyncService.shared.reloadUserDismissedFromStorage()
         CustomCategoryService.shared.customCategories.removeAll()
         if let encoded = try? JSONEncoder().encode([CustomCategory]()) {
             UserDefaults.standard.set(encoded, forKey: "saved_custom_categories")

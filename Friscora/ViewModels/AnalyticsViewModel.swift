@@ -377,3 +377,31 @@ class AnalyticsViewModel: ObservableObject {
         return incomeSplitSegmentDenominator > monthlyIncome + eps
     }
 }
+
+// MARK: - Dashboard → Analytics month (one-shot handoff)
+
+/// Persists the dashboard’s selected month so opening Analytics from “Show more” can align the analytics month picker without a larger shared-state refactor.
+enum AnalyticsMonthHandoff {
+    private static let userDefaultsKey = "friscora_pending_analytics_month_from_dashboard"
+    private static let monthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM"
+        f.timeZone = TimeZone.current
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    static func scheduleOpenAligningAnalytics(toMonth month: Date) {
+        UserDefaults.standard.set(monthFormatter.string(from: month), forKey: userDefaultsKey)
+    }
+
+    /// Returns the month to select if a handoff was scheduled, then clears the flag. `nil` if none, parse failed, or month is outside `availableMonths`.
+    static func consumePendingMonth(calendar: Calendar, availableMonths: [Date]) -> Date? {
+        guard let raw = UserDefaults.standard.string(forKey: userDefaultsKey) else { return nil }
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        guard let parsed = monthFormatter.date(from: raw),
+              let monthStart = calendar.dateInterval(of: .month, for: parsed)?.start
+        else { return nil }
+        return availableMonths.first { calendar.isDate($0, equalTo: monthStart, toGranularity: .month) }
+    }
+}

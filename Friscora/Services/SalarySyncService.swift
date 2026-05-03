@@ -38,6 +38,17 @@ final class SalarySyncService {
         }
     }
     
+    /// Clears persisted “user dismissed salary” hints (Erase all data).
+    func clearAllPersistedDismissalsForDataErase() {
+        userDismissedSalaryKeys = []
+        if let encoded = try? JSONEncoder().encode([String]()) {
+            UserDefaults.standard.set(encoded, forKey: userDismissedKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: userDismissedKey)
+        }
+        ICloudSyncService.shared.syncToCloud()
+    }
+
     private func loadUserDismissed() {
         guard let data = UserDefaults.standard.data(forKey: userDismissedKey),
               let decoded = try? JSONDecoder().decode([String].self, from: data) else {

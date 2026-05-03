@@ -62,7 +62,7 @@ final class StatementImportManualOverrideTests: XCTestCase {
         updated.categorizationSource = .manual
         updated.isCategorizationManuallyOverridden = true
         updated.categorizationConfidence = 1.0
-        updated.categorizationReasons = ["Selected manually during statement review."]
+        updated.categorizationReasons = ["statement.import.categorization.reason.manual_review"]
         vm.updateTransaction(updated)
 
         let reloaded = coordinator.session(for: fileID)
@@ -100,7 +100,7 @@ final class StatementImportManualOverrideTests: XCTestCase {
         tx.categorizationSource = .manual
         tx.isCategorizationManuallyOverridden = true
         tx.categorizationConfidence = 1.0
-        tx.categorizationReasons = ["Selected manually during statement review."]
+        tx.categorizationReasons = ["statement.import.categorization.reason.manual_review"]
 
         let session = StatementImportSession(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000203")!,

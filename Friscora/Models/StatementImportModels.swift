@@ -7,6 +7,18 @@ enum StatementFileStatus: String, Codable, CaseIterable {
     case imported = "Imported"
     case needsReview = "Needs Review"
     case failed = "Failed"
+
+    /// User-visible status; `rawValue` stays stable for persistence.
+    var localizedName: String {
+        switch self {
+        case .uploaded: return L10n("statement.import.file_status.uploaded")
+        case .scanned: return L10n("statement.import.file_status.scanned")
+        case .reviewed: return L10n("statement.import.file_status.reviewed")
+        case .imported: return L10n("statement.import.file_status.imported")
+        case .needsReview: return L10n("statement.import.file_status.needs_review")
+        case .failed: return L10n("statement.import.file_status.failed")
+        }
+    }
 }
 
 enum StatementImportSessionStatus: String, Codable {
@@ -203,5 +215,28 @@ struct StatementImportSession: Identifiable, Codable, Equatable {
 struct DuplicateTransactionWarning: Identifiable, Equatable {
     let id = UUID()
     let parsedTransactionID: UUID
+    /// Localization key (e.g. `statement.import.duplicate.possible`).
     let reason: String
+}
+
+/// Resolves `StatementImportSession.warnings` entries (`key` or `key|count`) for display.
+func localizedStatementImportSessionWarning(_ raw: String) -> String {
+    let parts = raw.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+    guard let key = parts.first, !key.isEmpty else { return raw }
+    guard key.hasPrefix("statement.import.") else { return raw }
+    if parts.count >= 2, let count = Int(parts[1]) {
+        switch key {
+        case "statement.import.warning.blocks_skipped_missing_amount":
+            return count == 1
+                ? String(format: L10n("statement.import.warning.blocks_skipped_missing_amount_one"), count)
+                : String(format: L10n("statement.import.warning.blocks_skipped_missing_amount_many"), count)
+        case "statement.import.warning.blocks_skipped_missing_date":
+            return count == 1
+                ? String(format: L10n("statement.import.warning.blocks_skipped_missing_date_one"), count)
+                : String(format: L10n("statement.import.warning.blocks_skipped_missing_date_many"), count)
+        default:
+            break
+        }
+    }
+    return L10n(key)
 }

@@ -17,6 +17,7 @@ class AuthenticationService: ObservableObject {
     private let biometricEnabledKey = "com.friscora.biometricEnabled"
     
     @Published var isAuthenticated = false
+    private var lastBackgroundAt: Date?
     
     private init() {}
     
@@ -148,6 +149,54 @@ class AuthenticationService: ObservableObject {
     /// Clear authentication state
     func clearAuthentication() {
         isAuthenticated = false
+        resetResumeTimingState()
+    }
+
+    /// Mark that app moved out of active state during this process lifetime.
+    func markAppBecameInactive() {
+        lastBackgroundAt = Date()
+    }
+
+    /// Determines if authentication is needed when app returns to foreground.
+    /// - Important: If no in-memory background timestamp exists, treat as cold launch and require auth.
+    func shouldRequireAuthenticationOnAppActive(
+        securityEnabled: Bool,
+        now: Date = Date()
+    ) -> Bool {
+        guard securityEnabled else {
+            return false
+        }
+
+        // If user is already unauthenticated, lock should be shown.
+        guard isAuthenticated else {
+            return true
+        }
+
+        // No in-memory timestamp in current process => cold launch (or unsafe state): require auth.
+        guard let lastBackgroundAt else {
+            isAuthenticated = false
+            return true
+        }
+
+        let elapsed = now.timeIntervalSince(lastBackgroundAt)
+
+        // Clock skew / manual time changes can create negative intervals; fail closed.
+        guard elapsed >= 0 else {
+            isAuthenticated = false
+            return true
+        }
+
+        if elapsed > AppConstants.Security.authGracePeriodSeconds {
+            isAuthenticated = false
+            return true
+        }
+
+        return false
+    }
+
+    /// Clears in-memory resume timing; used when security is disabled or auth state is reset.
+    func resetResumeTimingState() {
+        lastBackgroundAt = nil
     }
     
     /// Disable authentication (requires current authentication)

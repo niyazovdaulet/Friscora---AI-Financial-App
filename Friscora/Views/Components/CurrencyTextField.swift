@@ -9,6 +9,8 @@ import SwiftUI
 
 struct CurrencyTextField: View {
     let title: String
+    /// ISO-style currency code shown beside the field (e.g. from profile).
+    let currencyCode: String
     @Binding var text: String
     let placeholder: String
     
@@ -19,7 +21,7 @@ struct CurrencyTextField: View {
                 .foregroundColor(.secondary)
             
             HStack {
-                Text("PLN")
+                Text(currencyCode)
                     .foregroundColor(.secondary)
                     .padding(.leading, 16)
                 

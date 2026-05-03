@@ -229,6 +229,15 @@ final class ScheduleSharingRepository: ObservableObject, ScheduleSharingReposito
         persistOutgoing()
     }
 
+    /// Removes local partnership, outgoing invite, and persisted keys (Erase all data).
+    func clearAllPersistedSharingStateForDataErase() {
+        partnership = nil
+        outgoingInvite = nil
+        pendingPeerEndedPartnerNotice = nil
+        defaults.removeObject(forKey: partnershipKey)
+        defaults.removeObject(forKey: outgoingKey)
+    }
+
     // MARK: - Persistence
 
     private func load() {

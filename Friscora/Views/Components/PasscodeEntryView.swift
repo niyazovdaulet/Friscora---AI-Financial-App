@@ -19,7 +19,7 @@ struct PasscodeEntryView: View {
     @FocusState private var isFocused: Bool
     
     init(passcode: Binding<String>,
-         title: String = "Enter Passcode",
+         title: String = L10n("auth.enter_passcode"),
          subtitle: String? = nil,
          onComplete: (() -> Void)? = nil) {
         self._passcode = passcode

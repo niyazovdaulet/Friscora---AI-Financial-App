@@ -84,25 +84,24 @@ struct HistoryView: View {
             .transition(.opacity.combined(with: .scale(scale: 0.96)))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if isSelectionMode {
-                        Button(L10n("common.cancel")) {
-                            dismissHistoryKeyboard()
-                            HapticHelper.lightImpact()
-                            isSelectionMode = false
-                            selectedActivityIDs = []
+                    HStack(spacing: 12) {
+                        if isSelectionMode {
+                            Button(L10n("common.cancel")) {
+                                dismissHistoryKeyboard()
+                                HapticHelper.lightImpact()
+                                isSelectionMode = false
+                                selectedActivityIDs = []
+                            }
+                            .foregroundColor(AppColorTheme.accent)
+                        } else {
+                            Button(L10n("history.bulk_enter_select")) {
+                                dismissHistoryKeyboard()
+                                HapticHelper.selection()
+                                isSelectionMode = true
+                            }
+                            .foregroundColor(AppColorTheme.textPrimary)
                         }
-                        .foregroundColor(AppColorTheme.accent)
-                    } else {
-                        Button(L10n("history.bulk_enter_select")) {
-                            dismissHistoryKeyboard()
-                            HapticHelper.selection()
-                            isSelectionMode = true
-                        }
-                        .foregroundColor(AppColorTheme.accent)
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 16) {
+
                         if !isSelectionMode {
                             Menu {
                                 Button(L10n("history.bulk_delete_visible"), role: .destructive) {
@@ -123,7 +122,7 @@ struct HistoryView: View {
                                 }
                             } label: {
                                 Image(systemName: "ellipsis.circle")
-                                    .foregroundColor(AppColorTheme.accent)
+                                    .foregroundColor(AppColorTheme.textPrimary)
                                     .font(.title3)
                             }
                         } else {
@@ -136,14 +135,16 @@ struct HistoryView: View {
                             .disabled(HistoryBulkActions.deletableActivities(from: getFilteredActivities()).isEmpty)
                             .foregroundColor(AppColorTheme.accent)
                         }
-                        Button {
-                            dismissHistoryKeyboard()
-                            dismiss()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(AppColorTheme.textSecondary)
-                                .font(.title3)
-                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        dismissHistoryKeyboard()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(AppColorTheme.textSecondary)
+                            .font(.title3)
                     }
                 }
                 ToolbarItemGroup(placement: .keyboard) {
@@ -304,7 +305,7 @@ struct HistoryView: View {
                     .font(.subheadline)
                     .onTapGesture { dismissHistoryKeyboard() }
                 
-                TextField("Search transactions...", text: $searchText)
+                TextField(L10n("history.search_placeholder"), text: $searchText)
                     .focused($textFocus, equals: .search)
                     .foregroundColor(AppColorTheme.textPrimary)
                     .font(.subheadline)

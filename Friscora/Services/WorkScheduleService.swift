@@ -316,6 +316,26 @@ class WorkScheduleService: ObservableObject {
     
     // MARK: - Work patterns & bulk history
     
+    /// Clears recurring patterns, bulk history, and pattern-suggestion state for “Erase all data”.
+    func clearAllPatternsBulkAndSuggestionStateForDataErase() {
+        suggestionRefreshTask?.cancel()
+        suggestionRefreshTask = nil
+        workPatterns = []
+        bulkOperations = []
+        dismissedPatternSuggestionTimestamps = [:]
+        patternSuggestion = nil
+        if let encoded = try? JSONEncoder().encode([WorkPattern]()) {
+            UserDefaults.standard.set(encoded, forKey: workPatternsKey)
+        }
+        if let encoded = try? JSONEncoder().encode([BulkOperation]()) {
+            UserDefaults.standard.set(encoded, forKey: bulkOperationsKey)
+        }
+        if let data = try? JSONEncoder().encode([String: TimeInterval]()) {
+            UserDefaults.standard.set(data, forKey: dismissedPatternSuggestionsKey)
+        }
+        ICloudSyncService.shared.syncToCloud()
+    }
+
     func loadWorkPatterns() {
         if let data = UserDefaults.standard.data(forKey: workPatternsKey),
            let decoded = try? JSONDecoder().decode([WorkPattern].self, from: data) {

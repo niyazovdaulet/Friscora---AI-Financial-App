@@ -26,11 +26,11 @@ struct AuthenticationDisableView: View {
                         .font(.system(size: 60))
                         .foregroundColor(.white)
                     
-                    Text("Disable Authentication")
+                    Text(L10n("auth.nav.disable_authentication"))
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
                     
-                    Text("Enter your passcode to disable authentication")
+                    Text(L10n("auth.disable_message"))
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -42,7 +42,7 @@ struct AuthenticationDisableView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: authService.biometricType == .faceID ? "faceid" : "touchid")
                                     .font(.system(size: 24))
-                                Text("Use \(authService.biometricType == .faceID ? "Face ID" : "Touch ID")")
+                                Text(String(format: L10n("onboarding.security.use_biometric"), authService.biometricType == .faceID ? L10n("auth.face_id") : L10n("auth.touch_id")))
                                     .font(.system(size: 18, weight: .semibold))
                             }
                             .foregroundColor(.white)
@@ -54,7 +54,7 @@ struct AuthenticationDisableView: View {
                             )
                         }
                         
-                        Text("or")
+                        Text(L10n("auth.or"))
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white.opacity(0.6))
                     }
@@ -62,18 +62,18 @@ struct AuthenticationDisableView: View {
                     PasscodeEntryView(
                         passcode: $passcode,
                         title: "",
-                        subtitle: showError ? "Incorrect passcode" : nil
+                        subtitle: showError ? L10n("auth.incorrect_passcode") : nil
                     ) {
                         verifyAndDisable()
                     }
                 }
                 .padding(40)
             }
-            .navigationTitle("Disable Authentication")
+            .navigationTitle(L10n("auth.nav.disable_authentication"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(L10n("common.cancel")) {
                         isPresented = false
                     }
                     .foregroundColor(.white)
@@ -102,6 +102,7 @@ struct AuthenticationDisableView: View {
     private func disableAuthentication() {
         authService.deletePasscode()
         authService.setBiometricEnabled(false)
+        authService.clearAuthentication()
         var profile = userProfileService.profile
         profile.isAuthenticationEnabled = false
         userProfileService.saveProfile(profile)
