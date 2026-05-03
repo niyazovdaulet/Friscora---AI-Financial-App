@@ -28,8 +28,8 @@ Native **SwiftUI** iPhone app for personal finance (income, expenses, goals, ana
 
 ## For reviewers 
 
-- **Senior iOS:** Expect SwiftUI composition, view models, services, and persistence boundaries suitable for a solo or small-team product codebase — not a tutorial sample.
-- **HR / non-technical:** Production-style finance + productivity app; **no AI product** in this codebase; Firebase is used for **specific** sync/auth flows, not as a generic “AI backend.”
+- Expect SwiftUI composition, view models, services, and persistence boundaries suitable for a solo or small-team product codebase — not a tutorial sample.
+- Production-style finance + productivity app; **no AI product** in this codebase; Firebase is used for **specific** sync/auth flows, not as a generic “AI backend.”
 
 ## Run locally
 
