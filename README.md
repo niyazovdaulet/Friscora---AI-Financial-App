@@ -4,6 +4,16 @@ Native **SwiftUI** iPhone app for personal finance (income, expenses, goals, ana
 
 **This repo does not include** an AI or “financial intelligence” assistant, on-device LLMs, or a mock-AI layer.
 
+## Screenshots
+
+| Dashboard | Analytics |
+|:-:|:-:|
+| ![Dashboard — balance, income/expense summary, categories](docs/screenshots/dashboard.png) | ![Analytics — month summary and spending by category](docs/screenshots/analytics.png) |
+
+| Add transaction | Schedule |
+|:-:|:-:|
+| ![Add — expense / income / goals entry](docs/screenshots/add-transaction.png) | ![Schedule — calendar and work markers](docs/screenshots/schedule.png) |
+
 ## Stack (technical snapshot)
 
 | Area | Notes |
